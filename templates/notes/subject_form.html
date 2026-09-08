@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}Editar {{ subject.name }} · Uni{% endblock %}
+{% block content %}
+<div class="max-w-md mx-auto space-y-4">
+    <h1 class="font-display text-2xl font-bold">Editar asignatura</h1>
+    <form method="post" class="card-panel space-y-4">
+        {% csrf_token %}
+        {% for field in form %}
+        <div>
+            <label class="block text-xs font-medium text-ink-secondary mb-1.5">{{ field.label }}</label>
+            {{ field }}
+            {% for error in field.errors %}<p class="field-error">{{ error }}</p>{% endfor %}
+        </div>
+        {% endfor %}
+        <div class="flex gap-2 flex-wrap pt-2">
+            <button type="submit" class="btn-primary flex-1">Guardar cambios</button>
+            <a href="{% url 'notes:subject-detail' pk=subject.pk %}" class="btn-ghost">Cancelar</a>
+        </div>
+    </form>
+    <form method="post" action="{% url 'notes:subject-delete' pk=subject.pk %}" onsubmit="return confirm('¿Borrar {{ subject.name }} y todos sus apuntes? Esto no se puede deshacer.');">
+        {% csrf_token %}
+        <button type="submit" class="btn-danger">Borrar asignatura y todos sus apuntes</button>
+    </form>
+</div>
+{% endblock %}

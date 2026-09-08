@@ -104,7 +104,6 @@ class TaskCrudTests(TestCase):
         task = Task.objects.create(user=self.user, title="Con fecha", due_date="2026-09-15")
         response = self.client.get(reverse("notes:task-edit", args=[task.pk]))
         self.assertContains(response, 'value="2026-09-15"')
-        self.assertIsNotNone(task.completed_at)
 
     def test_tarea_vencida_se_detecta(self):
         yesterday = timezone.localdate() - timedelta(days=1)

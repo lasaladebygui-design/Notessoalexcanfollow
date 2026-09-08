@@ -436,6 +436,20 @@ def subject_delete(request, pk):
 
 
 @login_required
+def subject_edit(request, pk):
+    subject = get_object_or_404(Subject, pk=pk, user=request.user)
+    if request.method == "POST":
+        form = SubjectForm(request.POST, instance=subject)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Asignatura actualizada.")
+            return redirect("notes:subject-detail", pk=subject.pk)
+    else:
+        form = SubjectForm(instance=subject)
+    return render(request, "notes/subject_form.html", {"form": form, "subject": subject})
+
+
+@login_required
 def subject_detail(request, pk):
     subject = get_object_or_404(Subject, pk=pk, user=request.user)
     if request.method == "POST":
