@@ -1,3 +1,5 @@
+import uuid
+
 from django.conf import settings
 from django.core.validators import FileExtensionValidator
 from django.db import models
@@ -251,6 +253,8 @@ class Subject(models.Model):
     name = models.CharField("nombre", max_length=100)
     color = models.CharField("color", max_length=7, default="#7c6bf0", help_text="Hex, ej. #7c6bf0.")
     icon = models.CharField("icono", max_length=8, blank=True, default="📘")
+    is_shared = models.BooleanField("compartida", default=False)
+    share_token = models.UUIDField("token para compartir", default=uuid.uuid4, editable=False, unique=True)
 
     class Meta:
         verbose_name = "asignatura"

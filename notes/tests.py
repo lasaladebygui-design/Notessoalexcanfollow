@@ -463,3 +463,51 @@ class LectureNotePdfTests(TestCase):
         })
         self.assertEqual(response.status_code, 200)
         self.assertFalse(self.subject.lecture_notes.filter(title="Malo").exists())
+
+
+class SubjectSharingTests(TestCase):
+    def setUp(self):
+        self.user = make_user("notes20@test.local")
+        self.subject = Subject.objects.create(user=self.user, name="Estadística")
+        self.client.login(username=self.user.username, password="Testpass123!")
+
+    def test_enlace_publico_da_404_si_no_esta_compartida(self):
+        response = self.client.get(reverse("notes:shared-subject", args=[self.subject.share_token]))
+        self.assertEqual(response.status_code, 404)
+
+    def test_activar_compartir_hace_visible_el_enlace_publico(self):
+        self.client.post(reverse("notes:subject-toggle-share", args=[self.subject.pk]))
+        self.subject.refresh_from_db()
+        self.assertTrue(self.subject.is_shared)
+
+        self.client.logout()
+        response = self.client.get(reverse("notes:shared-subject", args=[self.subject.share_token]))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Estadística")
+
+    def test_desactivar_compartir_vuelve_a_dar_404(self):
+        self.subject.is_shared = True
+        self.subject.save(update_fields=["is_shared"])
+        self.client.post(reverse("notes:subject-toggle-share", args=[self.subject.pk]))
+
+        self.client.logout()
+        response = self.client.get(reverse("notes:shared-subject", args=[self.subject.share_token]))
+        self.assertEqual(response.status_code, 404)
+
+    def test_pagina_publica_no_tiene_controles_de_edicion(self):
+        self.subject.is_shared = True
+        self.subject.save(update_fields=["is_shared"])
+        LectureNote.objects.create(subject=self.subject, title="Tema 1", content="Contenido")
+
+        self.client.logout()
+        response = self.client.get(reverse("notes:shared-subject", args=[self.subject.share_token]))
+        self.assertNotContains(response, "Borrar")
+
+    def test_otro_usuario_no_puede_activar_compartir_de_asignatura_ajena(self):
+        other = make_user("notes21@test.local")
+        self.client.logout()
+        self.client.login(username=other.username, password="Testpass123!")
+        response = self.client.post(reverse("notes:subject-toggle-share", args=[self.subject.pk]))
+        self.assertEqual(response.status_code, 404)
+        self.subject.refresh_from_db()
+        self.assertFalse(self.subject.is_shared)

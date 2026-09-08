@@ -14,6 +14,27 @@
         </div>
     </div>
 
+    <div class="card-panel space-y-3" x-data="{ copied: false }">
+        <div class="flex items-center justify-between gap-3 flex-wrap">
+            <div>
+                <h2 class="font-display text-lg font-semibold">Compartir con amigos</h2>
+                <p class="text-xs text-ink-muted mt-0.5">{% if subject.is_shared %}Cualquiera con el enlace puede ver estos apuntes (sin cuenta).{% else %}Actívalo para generar un enlace de solo lectura.{% endif %}</p>
+            </div>
+            <form method="post" action="{% url 'notes:subject-toggle-share' pk=subject.pk %}">
+                {% csrf_token %}
+                <button type="submit" class="{% if subject.is_shared %}btn-primary{% else %}btn-ghost{% endif %}">{% if subject.is_shared %}✓ Compartiendo{% else %}🔗 Compartir{% endif %}</button>
+            </form>
+        </div>
+        {% if subject.is_shared %}
+        <div class="flex gap-2">
+            <input type="text" readonly value="{{ share_url }}" x-ref="shareLink" onclick="this.select()" class="!text-xs">
+            <button type="button" class="btn-ghost shrink-0" @click="navigator.clipboard.writeText($refs.shareLink.value); copied = true; setTimeout(() => copied = false, 1500)">
+                <span x-show="!copied">Copiar</span><span x-show="copied" x-cloak>✓ Copiado</span>
+            </button>
+        </div>
+        {% endif %}
+    </div>
+
     <div class="card-panel space-y-4" style="border-left: 3px solid {{ subject.color }};">
         <h2 class="font-display text-lg font-semibold">Nuevo apunte</h2>
         <form method="post" enctype="multipart/form-data" class="space-y-3">

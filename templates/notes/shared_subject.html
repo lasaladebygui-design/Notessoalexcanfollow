@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="es" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ subject.name }} · Apuntes compartidos</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Sora:wght@600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        display: ['"Sora"', 'system-ui', 'sans-serif'],
+                        sans: ['Inter', 'system-ui', 'sans-serif'],
+                    },
+                    colors: {
+                        surface: { DEFAULT: '#15161c', raised: '#1c1e27' },
+                        plane: '#0c0d11',
+                        ink: { primary: '#f4f4f6', secondary: '#b9bac4', muted: '#7d7f8c' },
+                        line: '#2a2c37',
+                        accent: { DEFAULT: '#7c6bf0', hover: '#9585f5' },
+                    },
+                },
+            },
+        };
+    </script>
+    <style>
+        body { background: #0c0d11; }
+        .card-panel { border-radius: 1rem; border: 1px solid #2a2c37; background: #1c1e27; padding: 1.25rem 1.4rem; }
+        .pill { display: inline-flex; align-items: center; gap:.25rem; border-radius: 999px; font-size: .72rem; font-weight: 600; padding: .2rem .6rem; border: 1px solid #2a2c37; color: #b9bac4; }
+    </style>
+</head>
+<body class="h-full bg-plane text-ink-primary font-sans antialiased">
+    <div class="max-w-2xl mx-auto px-4 py-10 space-y-6">
+
+        <p class="text-xs text-ink-muted uppercase tracking-wide">Apuntes compartidos</p>
+        <div class="flex items-center gap-2">
+            <span class="text-3xl">{{ subject.icon }}</span>
+            <h1 class="font-display text-2xl font-bold text-ink-primary">{{ subject.name }}</h1>
+        </div>
+
+        {% if lecture_notes %}
+        <div class="space-y-3">
+            {% for note in lecture_notes %}
+            <div class="card-panel">
+                <p class="text-xs text-ink-muted">{{ note.date|date:"l j \d\e F"|capfirst }}</p>
+                <p class="font-semibold text-ink-primary mt-0.5">{{ note.title|default:"Apunte sin título" }}</p>
+                {% if note.content %}<p class="text-sm text-ink-secondary mt-2 whitespace-pre-wrap">{{ note.content }}</p>{% endif %}
+                {% if note.pdf %}
+                <a href="{{ note.pdf.url }}" target="_blank" rel="noopener" class="pill mt-2 inline-flex">📄 Ver PDF</a>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p class="text-sm text-ink-muted">Todavía no hay apuntes en {{ subject.name }}.</p>
+        {% endif %}
+
+        <p class="text-xs text-ink-muted pt-6 border-t border-line">Compartido desde Notas.</p>
+    </div>
+</body>
+</html>

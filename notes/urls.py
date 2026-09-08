@@ -44,8 +44,10 @@ urlpatterns = [
     path("uni/<int:pk>/", views.subject_detail, name="subject-detail"),
     path("uni/<int:pk>/editar/", views.subject_edit, name="subject-edit"),
     path("uni/<int:pk>/borrar/", views.subject_delete, name="subject-delete"),
+    path("uni/<int:pk>/compartir/", views.subject_toggle_share, name="subject-toggle-share"),
     path("uni/apunte/<int:pk>/editar/", views.lecture_note_edit, name="lecture-note-edit"),
     path("uni/apunte/<int:pk>/borrar/", views.lecture_note_delete, name="lecture-note-delete"),
+    path("compartido/<uuid:token>/", views.shared_subject, name="shared-subject"),
 
     path("calendario/", views.calendar_view, name="calendar"),
 ]

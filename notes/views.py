@@ -7,6 +7,7 @@ from django.contrib.auth.decorators import login_required
 from django.db.models import Count, Q
 from django.http import Http404, HttpResponseBadRequest, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
@@ -450,6 +451,27 @@ def subject_edit(request, pk):
 
 
 @login_required
+@require_POST
+def subject_toggle_share(request, pk):
+    subject = get_object_or_404(Subject, pk=pk, user=request.user)
+    subject.is_shared = not subject.is_shared
+    subject.save(update_fields=["is_shared"])
+    return redirect("notes:subject-detail", pk=subject.pk)
+
+
+def shared_subject(request, token):
+    """Vista pública (sin login) para que un amigo vea los apuntes de una
+    asignatura compartida -- de solo lectura, sin ningún control de
+    edición/borrado. Si el dueño desactiva "Compartir" después de dar el
+    enlace, is_shared=False hace que esto vuelva a dar 404."""
+    subject = get_object_or_404(Subject, share_token=token, is_shared=True)
+    return render(request, "notes/shared_subject.html", {
+        "subject": subject,
+        "lecture_notes": subject.lecture_notes.all(),
+    })
+
+
+@login_required
 def subject_detail(request, pk):
     subject = get_object_or_404(Subject, pk=pk, user=request.user)
     if request.method == "POST":
@@ -463,10 +485,12 @@ def subject_detail(request, pk):
     else:
         form = LectureNoteForm(initial={"date": timezone.localdate()})
 
+    share_url = request.build_absolute_uri(reverse("notes:shared-subject", args=[subject.share_token]))
     return render(request, "notes/subject_detail.html", {
         "subject": subject,
         "lecture_notes": subject.lecture_notes.all(),
         "form": form,
+        "share_url": share_url,
     })
 
 
