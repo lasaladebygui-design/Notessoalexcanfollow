@@ -97,9 +97,10 @@ class SubjectForm(forms.ModelForm):
 class LectureNoteForm(forms.ModelForm):
     class Meta:
         model = LectureNote
-        fields = ["date", "title", "content"]
+        fields = ["date", "title", "content", "pdf"]
         widgets = {
             "date": forms.DateInput(format="%Y-%m-%d", attrs={"type": "date"}),
             "title": forms.TextInput(attrs={"placeholder": "Título del tema (opcional)"}),
             "content": forms.Textarea(attrs={"rows": 10, "placeholder": "Escribe aquí todo lo que se ha dicho en clase..."}),
+            "pdf": forms.ClearableFileInput(attrs={"accept": "application/pdf"}),
         }

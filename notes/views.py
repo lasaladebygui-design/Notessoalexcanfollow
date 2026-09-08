@@ -453,7 +453,7 @@ def subject_edit(request, pk):
 def subject_detail(request, pk):
     subject = get_object_or_404(Subject, pk=pk, user=request.user)
     if request.method == "POST":
-        form = LectureNoteForm(request.POST)
+        form = LectureNoteForm(request.POST, request.FILES)
         if form.is_valid():
             lecture_note = form.save(commit=False)
             lecture_note.subject = subject
@@ -474,7 +474,7 @@ def subject_detail(request, pk):
 def lecture_note_edit(request, pk):
     lecture_note = get_object_or_404(LectureNote, pk=pk, subject__user=request.user)
     if request.method == "POST":
-        form = LectureNoteForm(request.POST, instance=lecture_note)
+        form = LectureNoteForm(request.POST, request.FILES, instance=lecture_note)
         if form.is_valid():
             form.save()
             messages.success(request, "Apunte actualizado.")

@@ -1,4 +1,5 @@
 from django.conf import settings
+from django.core.validators import FileExtensionValidator
 from django.db import models
 from django.utils import timezone
 
@@ -272,6 +273,11 @@ class LectureNote(models.Model):
     date = models.DateField("fecha", default=timezone.localdate)
     title = models.CharField("título", max_length=200, blank=True)
     content = models.TextField("contenido", blank=True)
+    pdf = models.FileField(
+        "PDF", upload_to="uni/%Y/%m/", null=True, blank=True,
+        validators=[FileExtensionValidator(["pdf"])],
+        help_text="Diapositivas o material de la clase, opcional.",
+    )
     created_at = models.DateTimeField("creado", auto_now_add=True)
     updated_at = models.DateTimeField("última edición", auto_now=True)
 

@@ -1,10 +1,12 @@
 import json
+import tempfile
 from datetime import timedelta
 from itertools import count
 from unittest.mock import patch
 
 from django.contrib.auth.models import User
-from django.test import TestCase
+from django.core.files.uploadedfile import SimpleUploadedFile
+from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
 
@@ -436,3 +438,28 @@ class SubjectAndLectureNoteTests(TestCase):
         LectureNote.objects.create(subject=subject, title="Apunte 1")
         self.client.post(reverse("notes:subject-delete", args=[subject.pk]))
         self.assertFalse(LectureNote.objects.filter(subject_id=subject.pk).exists())
+
+
+@override_settings(MEDIA_ROOT=tempfile.mkdtemp())
+class LectureNotePdfTests(TestCase):
+    def setUp(self):
+        self.user = make_user("notes19@test.local")
+        self.subject = Subject.objects.create(user=self.user, name="Programación")
+        self.client.login(username=self.user.username, password="Testpass123!")
+
+    def test_subir_pdf_a_un_apunte(self):
+        pdf = SimpleUploadedFile("apuntes.pdf", b"%PDF-1.4 contenido falso", content_type="application/pdf")
+        response = self.client.post(reverse("notes:subject-detail", args=[self.subject.pk]), {
+            "date": timezone.localdate().isoformat(), "title": "Con PDF", "content": "", "pdf": pdf,
+        })
+        self.assertEqual(response.status_code, 302)
+        note = self.subject.lecture_notes.get(title="Con PDF")
+        self.assertTrue(note.pdf.name.endswith(".pdf"))
+
+    def test_rechaza_archivo_que_no_es_pdf(self):
+        not_pdf = SimpleUploadedFile("virus.exe", b"no soy un pdf", content_type="application/octet-stream")
+        response = self.client.post(reverse("notes:subject-detail", args=[self.subject.pk]), {
+            "date": timezone.localdate().isoformat(), "title": "Malo", "content": "", "pdf": not_pdf,
+        })
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(self.subject.lecture_notes.filter(title="Malo").exists())

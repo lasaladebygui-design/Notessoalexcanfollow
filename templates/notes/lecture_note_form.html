@@ -3,7 +3,7 @@
 {% block content %}
 <div class="max-w-2xl mx-auto space-y-4">
     <h1 class="font-display text-2xl font-bold">Editar apunte — {{ lecture_note.subject.name }}</h1>
-    <form method="post" class="card-panel space-y-4">
+    <form method="post" enctype="multipart/form-data" class="card-panel space-y-4">
         {% csrf_token %}
         <div class="flex gap-3 flex-wrap">
             <div class="w-40">
@@ -18,6 +18,12 @@
         <div>
             <label class="block text-xs font-medium text-ink-secondary mb-1.5">Contenido</label>
             {{ form.content }}
+        </div>
+        <div>
+            <label class="block text-xs font-medium text-ink-secondary mb-1.5">PDF</label>
+            {% if lecture_note.pdf %}<a href="{{ lecture_note.pdf.url }}" target="_blank" rel="noopener" class="pill mb-2 inline-flex">📄 PDF actual</a>{% endif %}
+            {{ form.pdf }}
+            {% for error in form.pdf.errors %}<p class="field-error">{{ error }}</p>{% endfor %}
         </div>
         <div class="flex gap-2 flex-wrap pt-2">
             <button type="submit" class="btn-primary flex-1">Guardar cambios</button>

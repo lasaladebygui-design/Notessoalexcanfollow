@@ -16,7 +16,7 @@
 
     <div class="card-panel space-y-4" style="border-left: 3px solid {{ subject.color }};">
         <h2 class="font-display text-lg font-semibold">Nuevo apunte</h2>
-        <form method="post" class="space-y-3">
+        <form method="post" enctype="multipart/form-data" class="space-y-3">
             {% csrf_token %}
             <div class="flex gap-3 flex-wrap">
                 <div class="w-40">
@@ -31,6 +31,11 @@
             <div>
                 <label class="block text-xs font-medium text-ink-secondary mb-1.5">Contenido</label>
                 {{ form.content }}
+            </div>
+            <div>
+                <label class="block text-xs font-medium text-ink-secondary mb-1.5">PDF (opcional)</label>
+                {{ form.pdf }}
+                {% for error in form.pdf.errors %}<p class="field-error">{{ error }}</p>{% endfor %}
             </div>
             <button type="submit" class="btn-primary">+ Guardar apunte</button>
         </form>
@@ -54,6 +59,9 @@
                 </div>
             </div>
             {% if note.content %}<p class="text-sm text-ink-secondary mt-2 whitespace-pre-wrap">{{ note.content|truncatechars:400 }}</p>{% endif %}
+            {% if note.pdf %}
+            <a href="{{ note.pdf.url }}" target="_blank" rel="noopener" class="pill mt-2 inline-flex">📄 Ver PDF</a>
+            {% endif %}
         </div>
         {% endfor %}
     </div>
