@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}Crear cuenta · Notas{% endblock %}
+{% block guest_content %}
+<div class="min-h-screen flex items-center justify-center px-4">
+    <div class="w-full max-w-sm">
+        <h1 class="font-display text-2xl font-bold text-center mb-6">Notas<span class="text-accent">.</span></h1>
+        <form method="post" class="card-panel space-y-4">
+            {% csrf_token %}
+            {% for field in form %}
+            <div>
+                <label class="block text-xs font-medium text-ink-secondary mb-1.5">{{ field.label }}</label>
+                {{ field }}
+                {% if field.help_text %}<p class="text-xs text-ink-muted mt-1">{{ field.help_text }}</p>{% endif %}
+                {% for error in field.errors %}<p class="field-error">{{ error }}</p>{% endfor %}
+            </div>
+            {% endfor %}
+            <button type="submit" class="btn-primary w-full">Crear cuenta</button>
+        </form>
+        <p class="text-center text-sm text-ink-muted mt-4">¿Ya tienes cuenta? <a href="{% url 'accounts:login' %}" class="text-accent">Entra</a></p>
+    </div>
+</div>
+{% endblock %}

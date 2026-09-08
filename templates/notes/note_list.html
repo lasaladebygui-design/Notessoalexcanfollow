@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block title %}Notas{% endblock %}
+{% block content %}
+<div class="space-y-6">
+
+    <div class="flex items-center justify-between gap-4 flex-wrap">
+        <h1 class="font-display text-2xl font-bold text-ink-primary">Tus notas</h1>
+        <a href="{% url 'notes:note-create' %}" class="btn-primary">+ Nueva nota</a>
+    </div>
+
+    <form method="get" class="flex flex-wrap gap-2">
+        <input type="search" name="q" value="{{ query }}" placeholder="Buscar en tus notas..." class="flex-1 min-w-[180px]">
+        <select name="category" onchange="this.form.submit()" class="w-auto">
+            <option value="">Todas las categorías</option>
+            {% for cat in categories %}
+            <option value="{{ cat.pk }}" {% if category_id == cat.pk|stringformat:"s" %}selected{% endif %}>{{ cat.icon }} {{ cat.name }}</option>
+            {% endfor %}
+        </select>
+        {% if tags %}
+        <select name="tag" onchange="this.form.submit()" class="w-auto">
+            <option value="">Todas las etiquetas</option>
+            {% for tag in tags %}
+            <option value="{{ tag.pk }}" {% if tag_id == tag.pk|stringformat:"s" %}selected{% endif %}>#{{ tag.name }}</option>
+            {% endfor %}
+        </select>
+        {% endif %}
+        <button type="submit" class="btn-ghost">Buscar</button>
+    </form>
+
+    {% if notes %}
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {% for note in notes %}
+        <div class="card-panel {% if note.is_pinned %}border-accent/50{% endif %} flex flex-col gap-2">
+            <div class="flex items-start justify-between gap-2">
+                <a href="{% url 'notes:note-edit' pk=note.pk %}" class="font-semibold text-ink-primary">{{ note.title }}</a>
+                <form method="post" action="{% url 'notes:note-toggle-pin' pk=note.pk %}">
+                    {% csrf_token %}
+                    <button type="submit" title="{% if note.is_pinned %}Quitar de fijadas{% else %}Fijar{% endif %}">{% if note.is_pinned %}📌{% else %}📍{% endif %}</button>
+                </form>
+            </div>
+            {% if note.body %}<p class="text-sm text-ink-muted">{{ note.body|truncatechars:140 }}</p>{% endif %}
+            <div class="flex flex-wrap gap-1.5 mt-1">
+                {% if note.category %}<span class="pill">{{ note.category.icon }} {{ note.category.name }}</span>{% endif %}
+                {% for tag in note.tags.all %}<span class="pill">#{{ tag.name }}</span>{% endfor %}
+                {% if note.reminder_date %}<span class="pill">📅 {{ note.reminder_date|date:"d/m/Y" }}</span>{% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <p class="text-sm text-ink-muted">{% if query or category_id or tag_id %}Sin resultados.{% else %}Todavía no tienes ninguna nota. <a href="{% url 'notes:note-create' %}" class="text-accent">Crea la primera</a>.{% endif %}</p>
+    {% endif %}
+</div>
+{% endblock %}

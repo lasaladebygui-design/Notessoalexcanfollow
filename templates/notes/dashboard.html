@@ -1,0 +1,155 @@
+{% extends "base.html" %}
+{% load humanize %}
+{% block title %}Resumen · Notas{% endblock %}
+{% block content %}
+<div class="space-y-8">
+
+    <div class="flex items-center justify-between gap-4 flex-wrap">
+        <div>
+            <h1 class="font-display text-2xl font-bold text-ink-primary">{{ greeting }}, {{ request.user.username }}</h1>
+            <p class="text-sm text-ink-muted mt-1">{{ today|date:"l j \d\e F"|capfirst }}</p>
+        </div>
+        <div class="flex gap-2">
+            <a href="{% url 'notes:task-create' %}" class="btn-primary">+ Tarea</a>
+            <a href="{% url 'notes:note-create' %}" class="btn-ghost">+ Nota</a>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-2 md:grid-cols-5 gap-4">
+        <div class="card-panel">
+            <p class="text-xs text-ink-muted uppercase tracking-wide mb-1">Pendientes</p>
+            <p class="font-display text-2xl font-bold">{{ pending_count }}</p>
+        </div>
+        <div class="card-panel">
+            <p class="text-xs text-ink-muted uppercase tracking-wide mb-1">Hechas esta semana</p>
+            <p class="font-display text-2xl font-bold text-good">{{ completed_this_week }}</p>
+        </div>
+        <div class="card-panel">
+            <p class="text-xs text-ink-muted uppercase tracking-wide mb-1">Vencidas</p>
+            <p class="font-display text-2xl font-bold text-critical">{{ overdue_count }}</p>
+        </div>
+        <div class="card-panel">
+            <p class="text-xs text-ink-muted uppercase tracking-wide mb-1">Prioridad alta</p>
+            <p class="font-display text-2xl font-bold text-warn">{{ high_priority_count }}</p>
+        </div>
+        <div class="card-panel">
+            <p class="text-xs text-ink-muted uppercase tracking-wide mb-1">Hábitos hoy</p>
+            <p class="font-display text-2xl font-bold">{{ habits_pending_count }}</p>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+        {% if due_today %}
+        <div class="card-panel">
+            <h2 class="font-display text-lg font-semibold mb-3">📌 Para hoy</h2>
+            <ul class="space-y-2">
+                {% for task in due_today %}
+                <li class="flex items-center gap-2 text-sm">
+                    <form method="post" action="{% url 'notes:task-toggle-done' pk=task.pk %}">
+                        {% csrf_token %}
+                        <button type="submit" class="text-ink-muted hover:text-accent">☐</button>
+                    </form>
+                    <a href="{% url 'notes:task-edit' pk=task.pk %}" class="flex-1">{{ task.title }}</a>
+                    <span class="pill">{{ task.get_priority_display }}</span>
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+
+        {% if overdue %}
+        <div class="card-panel">
+            <h2 class="font-display text-lg font-semibold mb-3 text-critical">⚠️ Vencidas</h2>
+            <ul class="space-y-2">
+                {% for task in overdue %}
+                <li class="flex items-center justify-between text-sm">
+                    <a href="{% url 'notes:task-edit' pk=task.pk %}">{{ task.title }}</a>
+                    <span class="text-ink-muted">{{ task.due_date|date:"d/m" }}</span>
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+
+        {% if high_priority %}
+        <div class="card-panel">
+            <h2 class="font-display text-lg font-semibold mb-3">🔥 Prioridad alta</h2>
+            <ul class="space-y-2">
+                {% for task in high_priority %}
+                <li class="flex items-center justify-between text-sm">
+                    <a href="{% url 'notes:task-edit' pk=task.pk %}">{{ task.title }}</a>
+                    {% if task.due_date %}<span class="text-ink-muted">{{ task.due_date|date:"d/m" }}</span>{% endif %}
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+
+        {% if upcoming %}
+        <div class="card-panel">
+            <h2 class="font-display text-lg font-semibold mb-3">🗓️ Próximos 7 días</h2>
+            <ul class="space-y-2">
+                {% for task in upcoming %}
+                <li class="flex items-center justify-between text-sm">
+                    <a href="{% url 'notes:task-edit' pk=task.pk %}">{{ task.title }}</a>
+                    <span class="text-ink-muted">{{ task.due_date|date:"d/m" }}</span>
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+
+        {% if upcoming_reminders %}
+        <div class="card-panel">
+            <h2 class="font-display text-lg font-semibold mb-3">⏰ Próximos recordatorios</h2>
+            <ul class="space-y-2">
+                {% for note in upcoming_reminders %}
+                <li class="flex items-center justify-between text-sm">
+                    <a href="{% url 'notes:note-edit' pk=note.pk %}">{{ note.title }}</a>
+                    <span class="text-ink-muted">{{ note.reminder_date|date:"d/m" }}</span>
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+
+        {% if habits_pending %}
+        <div class="card-panel">
+            <h2 class="font-display text-lg font-semibold mb-3">🔁 Hábitos pendientes hoy</h2>
+            <ul class="space-y-2">
+                {% for habit in habits_pending %}
+                <li class="flex items-center gap-2 text-sm">
+                    <form method="post" action="{% url 'notes:habit-toggle-checkin' pk=habit.pk %}">
+                        {% csrf_token %}
+                        <button type="submit" class="text-ink-muted hover:text-accent">☐</button>
+                    </form>
+                    <a href="{% url 'notes:habit-list' %}" class="flex-1">{{ habit.title }}</a>
+                    {% if habit.current_streak %}<span class="pill">🔥 {{ habit.current_streak }}</span>{% endif %}
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+
+        {% if recent_notes %}
+        <div class="card-panel">
+            <h2 class="font-display text-lg font-semibold mb-3">📝 Notas recientes</h2>
+            <ul class="space-y-2">
+                {% for note in recent_notes %}
+                <li class="flex items-center justify-between text-sm">
+                    <a href="{% url 'notes:note-edit' pk=note.pk %}">{{ note.title }}</a>
+                    {% if note.category %}<span class="pill">{{ note.category.icon }} {{ note.category.name }}</span>{% endif %}
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+
+    </div>
+
+    {% if not due_today and not overdue and not high_priority and not upcoming and not upcoming_reminders and not recent_notes and not habits_pending %}
+    <p class="text-sm text-ink-muted">Todavía no tienes nada apuntado. <a href="{% url 'notes:task-create' %}" class="text-accent">Crea tu primera tarea</a> o <a href="{% url 'notes:note-create' %}" class="text-accent">tu primera nota</a>.</p>
+    {% endif %}
+</div>
+{% endblock %}

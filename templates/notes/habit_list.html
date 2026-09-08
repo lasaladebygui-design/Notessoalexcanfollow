@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}Hábitos{% endblock %}
+{% block content %}
+<div class="max-w-lg space-y-6">
+    <h1 class="font-display text-2xl font-bold text-ink-primary">Hábitos</h1>
+
+    {% if habits %}
+    <ul class="space-y-2">
+        {% for habit in habits %}
+        <li class="card-panel flex items-center gap-3">
+            <form method="post" action="{% url 'notes:habit-toggle-checkin' pk=habit.pk %}">
+                {% csrf_token %}
+                <button type="submit" class="text-xl {% if habit.done_today %}text-accent{% else %}text-ink-muted hover:text-accent{% endif %}" title="{% if habit.done_today %}Marcado hoy{% else %}Marcar hoy{% endif %}">{% if habit.done_today %}☑{% else %}☐{% endif %}</button>
+            </form>
+            <div class="flex-1">
+                <p class="font-medium {% if habit.done_today %}text-ink-primary{% else %}text-ink-secondary{% endif %}">{{ habit.title }}</p>
+                {% if habit.category %}<span class="pill mt-1 inline-block">{{ habit.category.icon }} {{ habit.category.name }}</span>{% endif %}
+            </div>
+            {% if habit.current_streak %}<span class="pill">🔥 {{ habit.current_streak }} {% if habit.current_streak == 1 %}día{% else %}días{% endif %}</span>{% endif %}
+            <form method="post" action="{% url 'notes:habit-delete' pk=habit.pk %}" onsubmit="return confirm('¿Borrar este hábito?');">
+                {% csrf_token %}
+                <button type="submit" class="text-ink-muted hover:text-critical" title="Borrar">🗑️</button>
+            </form>
+        </li>
+        {% endfor %}
+    </ul>
+    {% else %}
+    <p class="text-sm text-ink-muted">Todavía no tienes hábitos.</p>
+    {% endif %}
+
+    <form method="post" class="card-panel flex gap-2 items-end">
+        {% csrf_token %}
+        {% for field in form %}
+        <div class="flex-1">
+            <label class="block text-xs font-medium text-ink-secondary mb-1.5">{{ field.label }}</label>
+            {{ field }}
+        </div>
+        {% endfor %}
+        <button type="submit" class="btn-primary">+ Añadir</button>
+    </form>
+</div>
+{% endblock %}

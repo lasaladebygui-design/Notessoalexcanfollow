@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block title %}Uni · Notas{% endblock %}
+{% block content %}
+<div class="space-y-6">
+
+    <div class="flex items-center justify-between gap-4 flex-wrap">
+        <div>
+            <h1 class="font-display text-2xl font-bold text-ink-primary">Apuntes de la uni</h1>
+            <p class="text-sm text-ink-muted mt-1">Una asignatura por carpeta, un apunte por clase.</p>
+        </div>
+    </div>
+
+    {% if subjects %}
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        {% for subject in subjects %}
+        <a href="{% url 'notes:subject-detail' pk=subject.pk %}" class="card-panel flex flex-col gap-3" style="border-top: 3px solid {{ subject.color }};">
+            <div class="flex items-center gap-2">
+                <span class="text-2xl">{{ subject.icon }}</span>
+                <p class="font-display font-semibold text-ink-primary">{{ subject.name }}</p>
+            </div>
+            <p class="text-xs text-ink-muted">{{ subject.notes_count }} apunte{{ subject.notes_count|pluralize }}</p>
+        </a>
+        {% endfor %}
+    </div>
+    {% else %}
+    <p class="text-sm text-ink-muted">Todavía no tienes asignaturas.</p>
+    {% endif %}
+
+    <div class="card-panel max-w-lg space-y-4">
+        <h2 class="font-display text-lg font-semibold">Nueva asignatura</h2>
+        <form method="post" class="flex gap-2 items-end flex-wrap">
+            {% csrf_token %}
+            {% for field in form %}
+            <div class="flex-1 min-w-[100px]">
+                <label class="block text-xs font-medium text-ink-secondary mb-1.5">{{ field.label }}</label>
+                {{ field }}
+            </div>
+            {% endfor %}
+            <button type="submit" class="btn-primary">+ Añadir</button>
+        </form>
+    </div>
+
+    {% if subjects %}
+    <div class="max-w-lg">
+        <details class="text-sm text-ink-muted">
+            <summary class="cursor-pointer hover:text-ink-primary">Borrar una asignatura</summary>
+            <ul class="mt-3 space-y-2">
+                {% for subject in subjects %}
+                <li class="flex items-center justify-between">
+                    <span>{{ subject.icon }} {{ subject.name }}</span>
+                    <form method="post" action="{% url 'notes:subject-delete' pk=subject.pk %}" onsubmit="return confirm('¿Borrar {{ subject.name }} y todos sus apuntes?');">
+                        {% csrf_token %}
+                        <button type="submit" class="text-ink-muted hover:text-critical" title="Borrar">🗑️</button>
+                    </form>
+                </li>
+                {% endfor %}
+            </ul>
+        </details>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

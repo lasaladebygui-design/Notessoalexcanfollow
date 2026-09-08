@@ -1,0 +1,14 @@
+Django==6.1.1
+asgiref==3.12.1
+sqlparse==0.6.0
+dj-database-url==3.1.2
+psycopg2-binary==2.9.12
+python-decouple==3.8
+whitenoise==6.12.0
+gunicorn==26.2.0
+requests==2.34.2
+certifi==2026.7.22
+charset-normalizer==3.5.1
+idna==3.19
+urllib3==2.7.0
+tzdata==2026.3

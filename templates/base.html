@@ -1,0 +1,144 @@
+{% load static %}<!DOCTYPE html>
+<html lang="es" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Notas{% endblock %}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Sora:wght@600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/alpinejs@3/dist/cdn.min.js" defer></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        display: ['"Sora"', 'system-ui', 'sans-serif'],
+                        sans: ['Inter', 'system-ui', 'sans-serif'],
+                    },
+                    colors: {
+                        surface: { DEFAULT: '#15161c', raised: '#1c1e27' },
+                        plane: '#0c0d11',
+                        ink: { primary: '#f4f4f6', secondary: '#b9bac4', muted: '#7d7f8c' },
+                        line: '#2a2c37',
+                        accent: { DEFAULT: '#7c6bf0', hover: '#9585f5', ink: '#ffffff' },
+                        magenta: '#e879c9',
+                        cyan: '#38d9dd',
+                        good: '#22c55e', warn: '#f5b942', critical: '#ef4444',
+                    },
+                },
+            },
+        };
+    </script>
+    <style>
+        [x-cloak] { display: none !important; }
+        body { background: #0c0d11; }
+        ::-webkit-scrollbar { width: 10px; height: 10px; }
+        ::-webkit-scrollbar-thumb { background: #2a2c37; border-radius: 999px; }
+        input[type="text"], input[type="password"], input[type="search"], input[type="date"],
+        select, textarea {
+            width: 100%; background: #15161c; border: 1px solid #2a2c37; border-radius: 0.6rem;
+            padding: 0.55rem 0.75rem; color: #f4f4f6; font-size: 0.9rem;
+        }
+        input[type="checkbox"] { accent-color: #7c6bf0; width: auto; }
+        input[type="color"] {
+            width: 2.75rem; height: 2.5rem; padding: 0.25rem; background: #15161c;
+            border: 1px solid #2a2c37; border-radius: 0.6rem; cursor: pointer;
+        }
+        input[type="color"]::-webkit-color-swatch-wrapper { padding: 2px; }
+        input[type="color"]::-webkit-color-swatch { border: none; border-radius: 0.35rem; }
+        input:focus, select:focus, textarea:focus { outline: 2px solid #7c6bf0; outline-offset: 1px; transition: outline-color .15s ease; }
+        input, select, textarea { transition: border-color .15s ease, box-shadow .15s ease; }
+
+        .card-panel {
+            border-radius: 1rem; border: 1px solid #2a2c37; background: #1c1e27; padding: 1.25rem 1.4rem;
+            transition: transform .2s cubic-bezier(.22,1,.36,1), border-color .2s ease, box-shadow .2s ease;
+        }
+        a.card-panel:hover, button.card-panel:hover {
+            transform: translateY(-3px);
+            border-color: rgba(124,107,240,.5);
+            box-shadow: 0 12px 28px -12px rgba(124,107,240,.35);
+        }
+
+        .btn-primary {
+            display: inline-flex; align-items: center; justify-content: center; gap: .4rem;
+            border-radius: .7rem; padding: .6rem 1.1rem; font-weight: 600; font-size: .875rem;
+            color: #fff; background: linear-gradient(135deg, #7c6bf0, #c65bd8);
+            background-size: 160% 160%; background-position: 0% 50%;
+            box-shadow: 0 4px 14px -4px rgba(124,107,240,.55);
+            transition: background-position .35s ease, transform .15s cubic-bezier(.22,1,.36,1), box-shadow .2s ease;
+        }
+        .btn-primary:hover { background-position: 100% 50%; transform: translateY(-2px); box-shadow: 0 10px 24px -6px rgba(198,91,216,.5); }
+        .btn-primary:active { transform: translateY(0) scale(.96); }
+
+        .btn-ghost {
+            display: inline-flex; align-items: center; justify-content: center; gap: .4rem;
+            border-radius: .7rem; border: 1px solid #2a2c37; color: #b9bac4; font-weight: 500; font-size: .875rem; padding: .55rem 1rem;
+            transition: border-color .2s ease, color .2s ease, transform .15s cubic-bezier(.22,1,.36,1), background-color .2s ease;
+        }
+        .btn-ghost:hover { border-color: #7c6bf0; color: #fff; background: rgba(124,107,240,.1); transform: translateY(-2px); }
+        .btn-ghost:active { transform: translateY(0) scale(.96); }
+
+        .btn-danger { color: #ef4444; font-size: .82rem; font-weight: 500; transition: color .15s ease, transform .15s ease; }
+        .btn-danger:hover { color: #f57a7a; }
+        .btn-danger:active { transform: scale(.96); }
+
+        .pill { display: inline-flex; align-items: center; gap:.25rem; border-radius: 999px; font-size: .72rem; font-weight: 600; padding: .2rem .6rem; border: 1px solid #2a2c37; color: #b9bac4; transition: transform .15s cubic-bezier(.22,1,.36,1), border-color .15s ease; }
+        a.pill:hover, button.pill:hover { transform: translateY(-1px) scale(1.04); border-color: #7c6bf0; }
+
+        .field-error { color: #ef4444; font-size: .8rem; margin-top: .2rem; }
+
+        button, a { transition: color .15s ease, background-color .15s ease, border-color .15s ease, transform .15s cubic-bezier(.22,1,.36,1); }
+        @media (prefers-reduced-motion: reduce) {
+            * { transition-duration: .01ms !important; animation-duration: .01ms !important; }
+        }
+    </style>
+    {% block extra_head %}{% endblock %}
+</head>
+<body class="h-full bg-plane text-ink-primary font-sans antialiased">
+    {% if user.is_authenticated %}
+    <div class="flex h-full">
+        <aside class="hidden md:flex md:w-56 md:flex-col md:border-r md:border-line md:bg-surface-raised md:sticky md:top-0 md:h-screen">
+            <div class="px-5 py-6 space-y-4">
+                <a href="{% url 'notes:dashboard' %}" class="font-display text-xl font-bold tracking-tight text-ink-primary">
+                    Notas<span class="text-accent">.</span>
+                </a>
+                <form method="get" action="{% url 'notes:search' %}">
+                    <input type="search" name="q" placeholder="Buscar..." class="!py-1.5 !text-sm">
+                </form>
+            </div>
+            <nav class="flex-1 px-3 space-y-1 text-sm">
+                {% include "partials/_nav_links.html" %}
+            </nav>
+        </aside>
+
+        <div class="flex-1 flex flex-col min-w-0" x-data="{ mobileNavOpen: false }">
+            <header class="md:hidden sticky top-0 z-30 flex items-center justify-between border-b border-line bg-surface/95 backdrop-blur px-4 py-3">
+                <a href="{% url 'notes:dashboard' %}" class="font-display text-lg font-bold">Notas<span class="text-accent">.</span></a>
+                <div class="flex items-center gap-2">
+                    <a href="{% url 'notes:search' %}" class="rounded-lg border border-line px-2.5 py-1.5 text-sm text-ink-secondary" aria-label="Buscar">🔍</a>
+                    <button type="button" @click="mobileNavOpen = !mobileNavOpen" :aria-expanded="mobileNavOpen.toString()" class="rounded-lg border border-line px-3 py-1.5 text-sm text-ink-secondary">☰ Menú</button>
+                </div>
+            </header>
+            <div x-show="mobileNavOpen" x-cloak @click.outside="mobileNavOpen = false" class="md:hidden border-b border-line bg-surface px-3 py-2 space-y-1 text-sm">
+                {% include "partials/_nav_links.html" %}
+            </div>
+
+            <main class="flex-1 px-4 py-6 md:px-8 md:py-8 max-w-6xl w-full mx-auto">
+                {% if messages %}
+                <div class="mb-6 space-y-2">
+                    {% for message in messages %}
+                    <div class="rounded-lg border border-line bg-surface-raised px-4 py-3 text-sm text-ink-secondary">{{ message }}</div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+                {% block content %}{% endblock %}
+            </main>
+        </div>
+    </div>
+    {% else %}
+        {% block guest_content %}{% endblock %}
+    {% endif %}
+</body>
+</html>

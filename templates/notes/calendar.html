@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% block title %}Calendario · Notas{% endblock %}
+{% block content %}
+<div class="space-y-6" x-data="{ selected: null }">
+
+    <div class="flex items-center justify-between gap-4 flex-wrap">
+        <h1 class="font-display text-2xl font-bold text-ink-primary">Calendario</h1>
+        {% if google_calendar_enabled %}
+        {% if google_calendar_connected %}
+        <form method="post" action="{% url 'accounts:google-calendar-disconnect' %}">
+            {% csrf_token %}
+            <button type="submit" class="btn-primary" title="Pulsa para desconectar">📆 Google Calendar conectado</button>
+        </form>
+        {% else %}
+        <a href="{% url 'accounts:google-calendar-connect' %}" class="btn-ghost">📆 Conectar con Google Calendar</a>
+        {% endif %}
+        {% endif %}
+    </div>
+
+    <div class="flex items-center justify-center gap-4">
+        <a href="?year={{ prev_year }}&month={{ prev_month }}" class="btn-ghost">← Anterior</a>
+        <span class="font-display font-semibold text-lg">{{ month_label|capfirst }}</span>
+        <a href="?year={{ next_year }}&month={{ next_month }}" class="btn-ghost">Siguiente →</a>
+    </div>
+
+    <div class="grid grid-cols-7 gap-1.5 text-center text-xs text-ink-muted font-medium">
+        <div>Lun</div><div>Mar</div><div>Mié</div><div>Jue</div><div>Vie</div><div>Sáb</div><div>Dom</div>
+    </div>
+    <div class="grid grid-cols-7 gap-1.5">
+        {% for week in weeks %}
+            {% for day in week %}
+            {% with day_key=day.date|date:"Y-m-d" %}
+            <button type="button"
+                    @click="selected = (selected === '{{ day_key }}' ? null : '{{ day_key }}')"
+                    class="aspect-square rounded-lg border text-sm flex flex-col items-center justify-center gap-0.5 transition-colors
+                        {% if not day.in_month %}border-transparent text-ink-muted/40{% elif day.is_today %}border-accent text-accent font-bold{% else %}border-line text-ink-secondary{% endif %}"
+                    :class="selected === '{{ day_key }}' ? 'bg-accent/15' : ''">
+                <span>{{ day.date.day }}</span>
+                {% if day.items %}<span class="w-1.5 h-1.5 rounded-full bg-accent"></span>{% endif %}
+            </button>
+            {% endwith %}
+            {% endfor %}
+        {% endfor %}
+    </div>
+
+    {% for week in weeks %}
+        {% for day in week %}
+        {% if day.items %}
+        {% with day_key=day.date|date:"Y-m-d" %}
+        <div x-show="selected === '{{ day_key }}'" x-cloak x-transition class="card-panel">
+            <div class="flex items-center justify-between mb-3">
+                <h3 class="font-semibold">{{ day.date|date:"l j \d\e F"|capfirst }}</h3>
+                <button type="button" @click="selected = null" class="text-ink-muted hover:text-ink-primary">✕</button>
+            </div>
+            <ul class="space-y-2">
+                {% for item in day.items %}
+                <li class="flex items-center gap-2 text-sm">
+                    {% if item.kind == "task" %}
+                    <span class="pill {% if item.obj.priority == 'urgent' %}border-critical text-critical{% elif item.obj.priority == 'high' %}border-warn text-warn{% endif %}">{{ item.obj.get_priority_display }}</span>
+                    <a href="{% url 'notes:task-edit' pk=item.obj.pk %}">{{ item.obj.title }}</a>
+                    {% else %}
+                    <span class="pill">📝 Nota</span>
+                    <a href="{% url 'notes:note-edit' pk=item.obj.pk %}">{{ item.obj.title }}</a>
+                    {% endif %}
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endwith %}
+        {% endif %}
+        {% endfor %}
+    {% endfor %}
+</div>
+{% endblock %}

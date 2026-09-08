@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+{% block title %}Tareas · Notas{% endblock %}
+{% block extra_head %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.2/Sortable.min.js"></script>
+{% endblock %}
+{% block content %}
+<div class="space-y-6">
+
+    <div class="flex items-center justify-between gap-4 flex-wrap">
+        <h1 class="font-display text-2xl font-bold text-ink-primary">Tus tareas</h1>
+        <a href="{% url 'notes:task-create' %}" class="btn-primary">+ Nueva tarea</a>
+    </div>
+
+    <form method="get" class="flex flex-wrap gap-2">
+        <input type="search" name="q" value="{{ query }}" placeholder="Buscar tareas..." class="flex-1 min-w-[180px]">
+        <select name="category" onchange="this.form.submit()" class="w-auto">
+            <option value="">Todas las categorías</option>
+            {% for cat in categories %}
+            <option value="{{ cat.pk }}" {% if category_id == cat.pk|stringformat:"s" %}selected{% endif %}>{{ cat.icon }} {{ cat.name }}</option>
+            {% endfor %}
+        </select>
+        <select name="priority" onchange="this.form.submit()" class="w-auto">
+            <option value="">Cualquier prioridad</option>
+            {% for value, label in priorities %}
+            <option value="{{ value }}" {% if priority == value %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+        </select>
+        <select name="show" onchange="this.form.submit()" class="w-auto">
+            <option value="pending" {% if show == "pending" %}selected{% endif %}>Pendientes</option>
+            <option value="done" {% if show == "done" %}selected{% endif %}>Hechas</option>
+            <option value="all" {% if show == "all" %}selected{% endif %}>Todas</option>
+        </select>
+        <button type="submit" class="btn-ghost">Buscar</button>
+    </form>
+
+    {% if tasks %}
+    {% csrf_token %}
+    <p class="text-xs text-ink-muted -mt-2">Arrastra ⠿ para reordenar.</p>
+    <ul class="space-y-3" id="task-sortable">
+        {% for task in tasks %}
+        <li class="card-panel {% if task.is_overdue %}border-critical/50{% endif %}" data-id="{{ task.pk }}"
+            style="border-left-width: 4px; border-left-color: {% if task.is_done %}#2a2c37{% elif task.priority == 'urgent' %}#ef4444{% elif task.priority == 'high' %}#f5b942{% elif task.priority == 'low' %}#7d7f8c{% else %}#b9bac4{% endif %};">
+            <div class="flex items-start gap-3">
+                <span class="task-drag-handle text-ink-muted cursor-grab active:cursor-grabbing pt-0.5" title="Arrastrar para reordenar">⠿</span>
+                <form method="post" action="{% url 'notes:task-toggle-done' pk=task.pk %}">
+                    {% csrf_token %}
+                    <button type="submit" class="text-lg {% if task.is_done %}text-accent{% else %}text-ink-muted{% endif %}" title="{% if task.is_done %}Marcar pendiente{% else %}Marcar hecha{% endif %}">{% if task.is_done %}☑{% else %}☐{% endif %}</button>
+                </form>
+                <div class="flex-1 min-w-0">
+                    <a href="{% url 'notes:task-edit' pk=task.pk %}" class="font-medium {% if task.is_done %}line-through text-ink-muted{% else %}text-ink-primary{% endif %}">{{ task.title }}</a>
+                    <div class="flex flex-wrap gap-2 mt-1.5">
+                        <span class="pill {% if task.priority == 'urgent' %}border-critical text-critical{% elif task.priority == 'high' %}border-warn text-warn{% endif %}">{{ task.get_priority_display }}</span>
+                        {% if task.category %}<span class="pill">{{ task.category.icon }} {{ task.category.name }}</span>{% endif %}
+                        {% if task.due_date %}<span class="pill {% if task.is_overdue %}border-critical text-critical{% endif %}">📅 {{ task.due_date|date:"d/m/Y" }}</span>{% endif %}
+                        {% for tag in task.tags.all %}<span class="pill">#{{ tag.name }}</span>{% endfor %}
+                    </div>
+                    {% if task.subtasks.all %}
+                    <ul class="mt-2 ml-2 space-y-1.5 border-l border-line pl-3">
+                        {% for subtask in task.subtasks.all %}
+                        <li class="flex items-center gap-2 text-sm">
+                            <form method="post" action="{% url 'notes:task-toggle-done' pk=subtask.pk %}">
+                                {% csrf_token %}
+                                <button type="submit" class="{% if subtask.is_done %}text-accent{% else %}text-ink-muted{% endif %}">{% if subtask.is_done %}☑{% else %}☐{% endif %}</button>
+                            </form>
+                            <a href="{% url 'notes:task-edit' pk=subtask.pk %}" class="{% if subtask.is_done %}line-through text-ink-muted{% endif %}">{{ subtask.title }}</a>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                    {% endif %}
+                    <a href="{% url 'notes:task-create' %}?parent={{ task.pk }}" class="text-xs text-ink-muted hover:text-accent mt-1.5 inline-block">+ Subtarea</a>
+                </div>
+            </div>
+        </li>
+        {% endfor %}
+    </ul>
+    {% else %}
+    <p class="text-sm text-ink-muted">{% if query or category_id or priority %}Sin resultados.{% else %}No tienes tareas {% if show == "pending" %}pendientes{% elif show == "done" %}hechas{% endif %}. <a href="{% url 'notes:task-create' %}" class="text-accent">Crea una</a>.{% endif %}</p>
+    {% endif %}
+</div>
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    var list = document.getElementById("task-sortable");
+    if (!list || typeof Sortable === "undefined") return;
+    function csrfToken() {
+        var match = document.cookie.match(/(?:^|; )csrftoken=([^;]+)/);
+        return match ? decodeURIComponent(match[1]) : "";
+    }
+    Sortable.create(list, {
+        handle: ".task-drag-handle",
+        animation: 150,
+        onEnd: function () {
+            var order = Array.prototype.map.call(list.children, function (li) { return parseInt(li.dataset.id, 10); });
+            fetch("{% url 'notes:task-reorder' %}", {
+                method: "POST",
+                headers: { "Content-Type": "application/json", "X-CSRFToken": csrfToken() },
+                body: JSON.stringify({ order: order }),
+            });
+        },
+    });
+});
+</script>
+{% endblock %}

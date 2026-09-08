@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block title %}{{ subject.name }} · Uni{% endblock %}
+{% block content %}
+<div class="max-w-2xl space-y-6">
+
+    <div class="flex items-center justify-between gap-4">
+        <div class="flex items-center gap-2">
+            <span class="text-3xl">{{ subject.icon }}</span>
+            <h1 class="font-display text-2xl font-bold text-ink-primary" style="text-decoration-color: {{ subject.color }};">{{ subject.name }}</h1>
+        </div>
+        <a href="{% url 'notes:subject-list' %}" class="btn-ghost">← Asignaturas</a>
+    </div>
+
+    <div class="card-panel space-y-4" style="border-left: 3px solid {{ subject.color }};">
+        <h2 class="font-display text-lg font-semibold">Nuevo apunte</h2>
+        <form method="post" class="space-y-3">
+            {% csrf_token %}
+            <div class="flex gap-3 flex-wrap">
+                <div class="w-40">
+                    <label class="block text-xs font-medium text-ink-secondary mb-1.5">Fecha</label>
+                    {{ form.date }}
+                </div>
+                <div class="flex-1 min-w-[180px]">
+                    <label class="block text-xs font-medium text-ink-secondary mb-1.5">Título (opcional)</label>
+                    {{ form.title }}
+                </div>
+            </div>
+            <div>
+                <label class="block text-xs font-medium text-ink-secondary mb-1.5">Contenido</label>
+                {{ form.content }}
+            </div>
+            <button type="submit" class="btn-primary">+ Guardar apunte</button>
+        </form>
+    </div>
+
+    {% if lecture_notes %}
+    <div class="space-y-3">
+        {% for note in lecture_notes %}
+        <div class="card-panel">
+            <div class="flex items-start justify-between gap-2">
+                <div>
+                    <p class="text-xs text-ink-muted">{{ note.date|date:"l j \d\e F"|capfirst }}</p>
+                    <p class="font-semibold text-ink-primary mt-0.5">{{ note.title|default:"Apunte sin título" }}</p>
+                </div>
+                <div class="flex gap-2 shrink-0">
+                    <a href="{% url 'notes:lecture-note-edit' pk=note.pk %}" class="text-ink-muted hover:text-accent text-sm" title="Editar">✏️</a>
+                    <form method="post" action="{% url 'notes:lecture-note-delete' pk=note.pk %}" onsubmit="return confirm('¿Borrar este apunte?');">
+                        {% csrf_token %}
+                        <button type="submit" class="text-ink-muted hover:text-critical text-sm" title="Borrar">🗑️</button>
+                    </form>
+                </div>
+            </div>
+            {% if note.content %}<p class="text-sm text-ink-secondary mt-2 whitespace-pre-wrap">{{ note.content|truncatechars:400 }}</p>{% endif %}
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <p class="text-sm text-ink-muted">Todavía no hay apuntes en {{ subject.name }}. Añade el primero arriba.</p>
+    {% endif %}
+</div>
+{% endblock %}

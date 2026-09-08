@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+{% block title %}Analíticas · Notas{% endblock %}
+{% block content %}
+<div class="space-y-8">
+
+    <h1 class="font-display text-2xl font-bold text-ink-primary">Analíticas</h1>
+
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div class="card-panel">
+            <p class="text-xs text-ink-muted uppercase tracking-wide mb-1">Tareas completadas</p>
+            <p class="font-display text-2xl font-bold">{{ tasks_done_total }}<span class="text-sm text-ink-muted font-normal"> / {{ tasks_total }}</span></p>
+        </div>
+        <div class="card-panel">
+            <p class="text-xs text-ink-muted uppercase tracking-wide mb-1">Objetivos conseguidos</p>
+            <p class="font-display text-2xl font-bold text-good">{{ goals_achieved }}<span class="text-sm text-ink-muted font-normal"> / {{ goals_total }}</span></p>
+        </div>
+        <div class="card-panel">
+            <p class="text-xs text-ink-muted uppercase tracking-wide mb-1">Mejor racha de hábito</p>
+            <p class="font-display text-2xl font-bold">🔥 {{ best_streak }}</p>
+        </div>
+        <div class="card-panel">
+            <p class="text-xs text-ink-muted uppercase tracking-wide mb-1">Notas este mes</p>
+            <p class="font-display text-2xl font-bold">{{ notes_this_month }}</p>
+        </div>
+    </div>
+
+    <div class="card-panel">
+        <h2 class="font-display text-lg font-semibold mb-1">Tareas completadas por semana</h2>
+        <p class="text-xs text-ink-muted mb-5">Últimas {{ weekly|length }} semanas</p>
+        {% if tasks_done_total %}
+        <div class="flex items-end gap-2.5 h-36" role="img" aria-label="Tareas completadas por semana">
+            {% for w in weekly %}
+            <div class="flex-1 flex flex-col items-center justify-end gap-2 h-full group">
+                <span class="text-[11px] text-ink-secondary tabular-nums opacity-0 group-hover:opacity-100 transition-opacity">{{ w.count }}</span>
+                <div class="w-full max-w-[28px] rounded-t-[4px] bg-accent transition-[height] duration-300" style="height: {{ w.pct }}%; min-height: {% if w.count > 0 %}3px{% else %}0{% endif %};"></div>
+                <span class="text-[10px] text-ink-muted tabular-nums">{{ w.label }}</span>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p class="text-sm text-ink-muted">Todavía no has completado ninguna tarea.</p>
+        {% endif %}
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+        <div class="card-panel">
+            <h2 class="font-display text-lg font-semibold mb-4">Tareas por categoría</h2>
+            {% if by_category %}
+            <div class="space-y-3">
+                {% for c in by_category %}
+                <div>
+                    <div class="flex items-center justify-between text-sm mb-1">
+                        <span class="text-ink-secondary">{{ c.category__icon }} {{ c.category__name }}</span>
+                        <span class="text-ink-muted tabular-nums">{{ c.total }}</span>
+                    </div>
+                    <div class="h-2 w-full rounded-full bg-surface-raised overflow-hidden">
+                        <div class="h-full rounded-full" style="width: {{ c.pct }}%; background: {{ c.category__color }};"></div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <p class="text-sm text-ink-muted">Todavía no tienes tareas con categoría.</p>
+            {% endif %}
+        </div>
+
+        <div class="card-panel">
+            <h2 class="font-display text-lg font-semibold mb-4">Tareas por prioridad</h2>
+            <div class="space-y-3">
+                {% for p in by_priority %}
+                <div>
+                    <div class="flex items-center justify-between text-sm mb-1">
+                        <span class="text-ink-secondary">{{ p.label }}</span>
+                        <span class="text-ink-muted tabular-nums">{{ p.count }}</span>
+                    </div>
+                    <div class="h-2 w-full rounded-full bg-surface-raised overflow-hidden">
+                        <div class="h-full rounded-full" style="width: {{ p.pct }}%; background: {{ p.color }};"></div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+        <div class="card-panel">
+            <h2 class="font-display text-lg font-semibold mb-4">Rachas de hábitos</h2>
+            {% if habits_summary %}
+            <ul class="space-y-2.5">
+                {% for h in habits_summary %}
+                <li class="flex items-center justify-between text-sm">
+                    <span class="{% if h.done_today %}text-ink-primary{% else %}text-ink-secondary{% endif %}">{{ h.title }}</span>
+                    <span class="pill">🔥 {{ h.streak }}</span>
+                </li>
+                {% endfor %}
+            </ul>
+            {% else %}
+            <p class="text-sm text-ink-muted">Todavía no tienes hábitos. <a href="{% url 'notes:habit-list' %}" class="text-accent">Crea uno</a>.</p>
+            {% endif %}
+        </div>
+
+        <div class="card-panel">
+            <h2 class="font-display text-lg font-semibold mb-4">Objetivos conseguidos</h2>
+            {% if goals_total %}
+            <div class="flex items-center gap-4">
+                <p class="font-display text-3xl font-bold text-good">{{ goals_pct }}%</p>
+                <div class="flex-1">
+                    <div class="h-2.5 w-full rounded-full bg-surface-raised overflow-hidden">
+                        <div class="h-full rounded-full bg-good" style="width: {{ goals_pct }}%;"></div>
+                    </div>
+                    <p class="text-xs text-ink-muted mt-1.5">{{ goals_achieved }} de {{ goals_total }} objetivos</p>
+                </div>
+            </div>
+            {% else %}
+            <p class="text-sm text-ink-muted">Todavía no tienes objetivos. <a href="{% url 'notes:goal-create' %}" class="text-accent">Crea uno</a>.</p>
+            {% endif %}
+        </div>
+
+    </div>
+</div>
+{% endblock %}

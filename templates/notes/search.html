@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% block title %}Buscar · Notas{% endblock %}
+{% block content %}
+<div class="max-w-2xl space-y-6">
+
+    <form method="get" class="flex gap-2">
+        <input type="search" name="q" value="{{ query }}" placeholder="Buscar en notas, tareas, hábitos, objetivos y apuntes..." class="flex-1" autofocus>
+        <button type="submit" class="btn-primary">Buscar</button>
+    </form>
+
+    {% if not query %}
+    <p class="text-sm text-ink-muted">Escribe algo para buscar en todo lo tuyo.</p>
+    {% elif not total %}
+    <p class="text-sm text-ink-muted">Sin resultados para «{{ query }}».</p>
+    {% else %}
+
+    {% if results.tasks %}
+    <div class="card-panel space-y-3">
+        <h2 class="font-display text-sm font-semibold text-ink-muted uppercase tracking-wide">✅ Tareas</h2>
+        <ul class="space-y-2">
+            {% for task in results.tasks %}
+            <li class="flex items-center justify-between gap-2 text-sm">
+                <a href="{% url 'notes:task-edit' pk=task.pk %}" class="{% if task.is_done %}line-through text-ink-muted{% else %}text-ink-primary{% endif %}">{{ task.title }}</a>
+                {% if task.category %}<span class="pill">{{ task.category.icon }} {{ task.category.name }}</span>{% endif %}
+            </li>
+            {% endfor %}
+        </ul>
+    </div>
+    {% endif %}
+
+    {% if results.notes %}
+    <div class="card-panel space-y-3">
+        <h2 class="font-display text-sm font-semibold text-ink-muted uppercase tracking-wide">📝 Notas</h2>
+        <ul class="space-y-2">
+            {% for note in results.notes %}
+            <li class="flex items-center justify-between gap-2 text-sm">
+                <a href="{% url 'notes:note-edit' pk=note.pk %}" class="text-ink-primary">{{ note.title }}</a>
+                {% if note.category %}<span class="pill">{{ note.category.icon }} {{ note.category.name }}</span>{% endif %}
+            </li>
+            {% endfor %}
+        </ul>
+    </div>
+    {% endif %}
+
+    {% if results.habits %}
+    <div class="card-panel space-y-3">
+        <h2 class="font-display text-sm font-semibold text-ink-muted uppercase tracking-wide">🔁 Hábitos</h2>
+        <ul class="space-y-2">
+            {% for habit in results.habits %}
+            <li><a href="{% url 'notes:habit-list' %}" class="text-sm text-ink-primary">{{ habit.title }}</a></li>
+            {% endfor %}
+        </ul>
+    </div>
+    {% endif %}
+
+    {% if results.goals %}
+    <div class="card-panel space-y-3">
+        <h2 class="font-display text-sm font-semibold text-ink-muted uppercase tracking-wide">🎯 Objetivos</h2>
+        <ul class="space-y-2">
+            {% for goal in results.goals %}
+            <li><a href="{% url 'notes:goal-detail' pk=goal.pk %}" class="text-sm text-ink-primary">{{ goal.title }}</a></li>
+            {% endfor %}
+        </ul>
+    </div>
+    {% endif %}
+
+    {% if results.lecture_notes %}
+    <div class="card-panel space-y-3">
+        <h2 class="font-display text-sm font-semibold text-ink-muted uppercase tracking-wide">🎓 Apuntes de la uni</h2>
+        <ul class="space-y-2">
+            {% for note in results.lecture_notes %}
+            <li class="flex items-center justify-between gap-2 text-sm">
+                <a href="{% url 'notes:subject-detail' pk=note.subject_id %}" class="text-ink-primary">{{ note.title|default:note.date }}</a>
+                <span class="pill" style="border-color: {{ note.subject.color }};">{{ note.subject.icon }} {{ note.subject.name }}</span>
+            </li>
+            {% endfor %}
+        </ul>
+    </div>
+    {% endif %}
+
+    {% endif %}
+</div>
+{% endblock %}
