@@ -401,6 +401,20 @@ class SubjectAndLectureNoteTests(TestCase):
         response = self.client.get(reverse("notes:subject-detail", args=[subject.pk]))
         self.assertEqual(response.status_code, 404)
 
+    def test_cambiar_color_de_una_asignatura(self):
+        subject = Subject.objects.create(user=self.user, name="Química", color="#7c6bf0")
+        response = self.client.post(reverse("notes:subject-edit", args=[subject.pk]), {
+            "name": "Química", "color": "#22c55e", "icon": subject.icon,
+        })
+        self.assertEqual(response.status_code, 302)
+        subject.refresh_from_db()
+        self.assertEqual(subject.color, "#22c55e")
+
+    def test_no_se_puede_editar_asignatura_ajena(self):
+        subject = Subject.objects.create(user=self.other, name="Ajena")
+        response = self.client.get(reverse("notes:subject-edit", args=[subject.pk]))
+        self.assertEqual(response.status_code, 404)
+
     def test_editar_apunte(self):
         subject = Subject.objects.create(user=self.user, name="Física")
         note = LectureNote.objects.create(subject=subject, title="Original", content="...")

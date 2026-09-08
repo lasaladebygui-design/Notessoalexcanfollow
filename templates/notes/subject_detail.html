@@ -8,7 +8,10 @@
             <span class="text-3xl">{{ subject.icon }}</span>
             <h1 class="font-display text-2xl font-bold text-ink-primary" style="text-decoration-color: {{ subject.color }};">{{ subject.name }}</h1>
         </div>
-        <a href="{% url 'notes:subject-list' %}" class="btn-ghost">← Asignaturas</a>
+        <div class="flex gap-2">
+            <a href="{% url 'notes:subject-edit' pk=subject.pk %}" class="btn-ghost" title="Cambiar nombre, color o icono">✏️ Editar</a>
+            <a href="{% url 'notes:subject-list' %}" class="btn-ghost">← Asignaturas</a>
+        </div>
     </div>
 
     <div class="card-panel space-y-4" style="border-left: 3px solid {{ subject.color }};">
