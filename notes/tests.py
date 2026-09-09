@@ -1,12 +1,11 @@
 import json
-import tempfile
 from datetime import timedelta
 from itertools import count
 from unittest.mock import patch
 
 from django.contrib.auth.models import User
 from django.core.files.uploadedfile import SimpleUploadedFile
-from django.test import TestCase, override_settings
+from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
 
@@ -440,10 +439,14 @@ class SubjectAndLectureNoteTests(TestCase):
         self.assertFalse(LectureNote.objects.filter(subject_id=subject.pk).exists())
 
 
-@override_settings(MEDIA_ROOT=tempfile.mkdtemp())
 class LectureNotePdfTests(TestCase):
+    """El PDF se guarda como bytes en la propia base de datos (Neon), no en
+    el disco de Render -- ver el comentario en LectureNote.pdf_data. Así
+    estos tests no dependen de MEDIA_ROOT/DEBUG en absoluto."""
+
     def setUp(self):
         self.user = make_user("notes19@test.local")
+        self.other = make_user("notes19b@test.local")
         self.subject = Subject.objects.create(user=self.user, name="Programación")
         self.client.login(username=self.user.username, password="Testpass123!")
 
@@ -454,7 +457,8 @@ class LectureNotePdfTests(TestCase):
         })
         self.assertEqual(response.status_code, 302)
         note = self.subject.lecture_notes.get(title="Con PDF")
-        self.assertTrue(note.pdf.name.endswith(".pdf"))
+        self.assertEqual(bytes(note.pdf_data), b"%PDF-1.4 contenido falso")
+        self.assertEqual(note.pdf_filename, "apuntes.pdf")
 
     def test_rechaza_archivo_que_no_es_pdf(self):
         not_pdf = SimpleUploadedFile("virus.exe", b"no soy un pdf", content_type="application/octet-stream")
@@ -464,20 +468,30 @@ class LectureNotePdfTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertFalse(self.subject.lecture_notes.filter(title="Malo").exists())
 
-    @override_settings(DEBUG=False, ALLOWED_HOSTS=["testserver"])
-    def test_el_pdf_subido_se_puede_descargar_en_produccion(self):
-        # Bug real: config/urls.py solo servía MEDIA_URL cuando DEBUG=True
-        # (el atajo static() es DEBUG-only) -- en producción (DEBUG=False,
-        # como en Render) el enlace "Ver PDF" daba 404 aunque el archivo se
-        # hubiera subido bien.
-        pdf = SimpleUploadedFile("apuntes.pdf", b"%PDF-1.4 contenido falso", content_type="application/pdf")
-        self.client.post(reverse("notes:subject-detail", args=[self.subject.pk]), {
-            "date": timezone.localdate().isoformat(), "title": "Con PDF", "content": "", "pdf": pdf,
-        })
-        note = self.subject.lecture_notes.get(title="Con PDF")
+    def test_el_pdf_subido_se_puede_descargar(self):
+        note = LectureNote.objects.create(
+            subject=self.subject, title="Con PDF",
+            pdf_data=b"%PDF-1.4 contenido falso", pdf_filename="apuntes.pdf",
+        )
+        response = self.client.get(reverse("notes:lecture-note-pdf", args=[note.pk]))
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response["Content-Type"], "application/pdf")
+        self.assertEqual(response.content, b"%PDF-1.4 contenido falso")
 
-        self.client.logout()  # el archivo se sirve igual, con o sin sesión
-        response = self.client.get(note.pdf.url)
+    def test_pdf_de_apunte_privado_da_404_a_otro_usuario(self):
+        note = LectureNote.objects.create(subject=self.subject, title="Privado", pdf_data=b"%PDF", pdf_filename="a.pdf")
+        self.client.logout()
+        self.client.login(username=self.other.username, password="Testpass123!")
+        response = self.client.get(reverse("notes:lecture-note-pdf", args=[note.pk]))
+        self.assertEqual(response.status_code, 404)
+
+    def test_pdf_de_apunte_compartido_es_visible_sin_cuenta(self):
+        self.subject.is_shared = True
+        self.subject.save(update_fields=["is_shared"])
+        note = LectureNote.objects.create(subject=self.subject, title="Compartido", pdf_data=b"%PDF", pdf_filename="a.pdf")
+
+        self.client.logout()
+        response = self.client.get(reverse("notes:lecture-note-pdf", args=[note.pk]))
         self.assertEqual(response.status_code, 200)
 
 

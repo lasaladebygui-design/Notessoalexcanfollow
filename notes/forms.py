@@ -95,12 +95,37 @@ class SubjectForm(forms.ModelForm):
 
 
 class LectureNoteForm(forms.ModelForm):
+    # No es un campo del modelo (pdf_data es un BinaryField, no un FileField)
+    # -- la vista lee este campo y vuelca los bytes a pdf_data/pdf_filename
+    # a mano. Así el archivo se guarda en la propia base de datos en vez de
+    # en el disco de Render (ver comentario en el modelo).
+    pdf = forms.FileField(
+        label="PDF", required=False,
+        widget=forms.ClearableFileInput(attrs={"accept": "application/pdf"}),
+        help_text="Diapositivas o material de la clase, opcional.",
+    )
+
     class Meta:
         model = LectureNote
-        fields = ["date", "title", "content", "pdf"]
+        fields = ["date", "title", "content"]
         widgets = {
             "date": forms.DateInput(format="%Y-%m-%d", attrs={"type": "date"}),
             "title": forms.TextInput(attrs={"placeholder": "Título del tema (opcional)"}),
             "content": forms.Textarea(attrs={"rows": 10, "placeholder": "Escribe aquí todo lo que se ha dicho en clase..."}),
-            "pdf": forms.ClearableFileInput(attrs={"accept": "application/pdf"}),
         }
+
+    def clean_pdf(self):
+        pdf = self.cleaned_data.get("pdf")
+        if pdf and not pdf.name.lower().endswith(".pdf"):
+            raise forms.ValidationError("El archivo debe ser un PDF.")
+        return pdf
+
+    def save(self, commit=True):
+        instance = super().save(commit=False)
+        pdf = self.cleaned_data.get("pdf")
+        if pdf:
+            instance.pdf_data = pdf.read()
+            instance.pdf_filename = pdf.name
+        if commit:
+            instance.save()
+        return instance

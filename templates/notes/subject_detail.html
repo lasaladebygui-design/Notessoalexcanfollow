@@ -80,8 +80,8 @@
                 </div>
             </div>
             {% if note.content %}<p class="text-sm text-ink-secondary mt-2 whitespace-pre-wrap">{{ note.content|truncatechars:400 }}</p>{% endif %}
-            {% if note.pdf %}
-            <a href="{{ note.pdf.url }}" target="_blank" rel="noopener" class="pill mt-2 inline-flex">📄 Ver PDF</a>
+            {% if note.pdf_data %}
+            <a href="{% url 'notes:lecture-note-pdf' pk=note.pk %}" target="_blank" rel="noopener" class="pill mt-2 inline-flex">📄 Ver PDF</a>
             {% endif %}
         </div>
         {% endfor %}

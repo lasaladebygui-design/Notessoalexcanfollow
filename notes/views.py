@@ -532,6 +532,24 @@ def lecture_note_delete(request, pk):
     return redirect("notes:subject-detail", pk=subject_id)
 
 
+def lecture_note_pdf(request, pk):
+    # Sin @login_required a propósito: el enlace "Ver PDF" también tiene
+    # que funcionar desde la página pública de una asignatura compartida
+    # (ver shared_subject). El permiso real es "la asignatura es tuya O
+    # está compartida" -- igual que shared_subject con is_shared=True.
+    lecture_note = get_object_or_404(LectureNote, pk=pk)
+    subject = lecture_note.subject
+    is_owner = request.user.is_authenticated and subject.user_id == request.user.id
+    if not (is_owner or subject.is_shared):
+        raise Http404
+    if not lecture_note.pdf_data:
+        raise Http404
+    filename = lecture_note.pdf_filename or "apunte.pdf"
+    response = HttpResponse(bytes(lecture_note.pdf_data), content_type="application/pdf")
+    response["Content-Disposition"] = f'inline; filename="{filename}"'
+    return response
+
+
 # --- Calendario ----------------------------------------------------------
 
 def _parse_calendar_month(request, today):

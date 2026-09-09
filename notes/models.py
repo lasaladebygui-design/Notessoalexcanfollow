@@ -1,7 +1,6 @@
 import uuid
 
 from django.conf import settings
-from django.core.validators import FileExtensionValidator
 from django.db import models
 from django.utils import timezone
 
@@ -277,11 +276,13 @@ class LectureNote(models.Model):
     date = models.DateField("fecha", default=timezone.localdate)
     title = models.CharField("título", max_length=200, blank=True)
     content = models.TextField("contenido", blank=True)
-    pdf = models.FileField(
-        "PDF", upload_to="uni/%Y/%m/", null=True, blank=True,
-        validators=[FileExtensionValidator(["pdf"])],
-        help_text="Diapositivas o material de la clase, opcional.",
-    )
+    # El PDF se guarda como bytes en la propia base de datos (Neon/Postgres)
+    # en vez de en el disco de Render -- ese disco es efímero (se borra en
+    # cada redeploy, causa real de que un PDF ya subido diera 404 después),
+    # y montar un storage de archivos aparte (S3/Supabase Storage) es más
+    # infraestructura de la que hace falta para el volumen de esta app.
+    pdf_data = models.BinaryField("PDF", null=True, blank=True, editable=False)
+    pdf_filename = models.CharField("nombre del PDF", max_length=255, blank=True)
     created_at = models.DateTimeField("creado", auto_now_add=True)
     updated_at = models.DateTimeField("última edición", auto_now=True)
 

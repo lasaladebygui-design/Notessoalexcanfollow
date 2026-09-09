@@ -21,7 +21,7 @@
         </div>
         <div>
             <label class="block text-xs font-medium text-ink-secondary mb-1.5">PDF</label>
-            {% if lecture_note.pdf %}<a href="{{ lecture_note.pdf.url }}" target="_blank" rel="noopener" class="pill mb-2 inline-flex">📄 PDF actual</a>{% endif %}
+            {% if lecture_note.pdf_data %}<a href="{% url 'notes:lecture-note-pdf' pk=lecture_note.pk %}" target="_blank" rel="noopener" class="pill mb-2 inline-flex">📄 PDF actual</a>{% endif %}
             {{ form.pdf }}
             {% for error in form.pdf.errors %}<p class="field-error">{{ error }}</p>{% endfor %}
         </div>

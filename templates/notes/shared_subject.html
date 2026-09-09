@@ -49,8 +49,8 @@
                 <p class="text-xs text-ink-muted">{{ note.date|date:"l j \d\e F"|capfirst }}</p>
                 <p class="font-semibold text-ink-primary mt-0.5">{{ note.title|default:"Apunte sin título" }}</p>
                 {% if note.content %}<p class="text-sm text-ink-secondary mt-2 whitespace-pre-wrap">{{ note.content }}</p>{% endif %}
-                {% if note.pdf %}
-                <a href="{{ note.pdf.url }}" target="_blank" rel="noopener" class="pill mt-2 inline-flex">📄 Ver PDF</a>
+                {% if note.pdf_data %}
+                <a href="{% url 'notes:lecture-note-pdf' pk=note.pk %}" target="_blank" rel="noopener" class="pill mt-2 inline-flex">📄 Ver PDF</a>
                 {% endif %}
             </div>
             {% endfor %}
