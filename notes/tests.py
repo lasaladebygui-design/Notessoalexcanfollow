@@ -464,6 +464,22 @@ class LectureNotePdfTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertFalse(self.subject.lecture_notes.filter(title="Malo").exists())
 
+    @override_settings(DEBUG=False, ALLOWED_HOSTS=["testserver"])
+    def test_el_pdf_subido_se_puede_descargar_en_produccion(self):
+        # Bug real: config/urls.py solo servía MEDIA_URL cuando DEBUG=True
+        # (el atajo static() es DEBUG-only) -- en producción (DEBUG=False,
+        # como en Render) el enlace "Ver PDF" daba 404 aunque el archivo se
+        # hubiera subido bien.
+        pdf = SimpleUploadedFile("apuntes.pdf", b"%PDF-1.4 contenido falso", content_type="application/pdf")
+        self.client.post(reverse("notes:subject-detail", args=[self.subject.pk]), {
+            "date": timezone.localdate().isoformat(), "title": "Con PDF", "content": "", "pdf": pdf,
+        })
+        note = self.subject.lecture_notes.get(title="Con PDF")
+
+        self.client.logout()  # el archivo se sirve igual, con o sin sesión
+        response = self.client.get(note.pdf.url)
+        self.assertEqual(response.status_code, 200)
+
 
 class SubjectSharingTests(TestCase):
     def setUp(self):
