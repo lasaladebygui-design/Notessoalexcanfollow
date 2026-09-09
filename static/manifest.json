@@ -1,0 +1,16 @@
+{
+    "name": "Notas",
+    "short_name": "Notas",
+    "description": "Notas, tareas, hábitos, objetivos, apuntes de la uni y calendario en un solo sitio.",
+    "start_url": "/?source=pwa",
+    "scope": "/",
+    "display": "standalone",
+    "background_color": "#0c0d11",
+    "theme_color": "#7c6bf0",
+    "orientation": "portrait",
+    "icons": [
+        { "src": "/static/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+        { "src": "/static/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+        { "src": "/static/icons/icon-512-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+    ]
+}

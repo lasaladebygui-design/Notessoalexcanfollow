@@ -2,10 +2,11 @@ import calendar as calendar_module
 import json
 from datetime import date, timedelta
 
+from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db.models import Count, Q
-from django.http import Http404, HttpResponseBadRequest, JsonResponse
+from django.http import Http404, HttpResponse, HttpResponseBadRequest, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
@@ -37,6 +38,20 @@ def dashboard(request):
 @login_required
 def stats(request):
     return render(request, "notes/stats.html", productivity_stats(request.user))
+
+
+# --- PWA (instalable en móvil) --------------------------------------------
+
+def offline(request):
+    return render(request, "notes/offline.html")
+
+
+def service_worker(request):
+    # Se sirve en la raíz (/sw.js), no bajo /static/, para que su scope
+    # cubra todo el sitio -- un service worker solo controla las rutas
+    # iguales o por debajo de la carpeta desde la que se sirve.
+    sw_path = settings.BASE_DIR / "static" / "sw.js"
+    return HttpResponse(sw_path.read_text(encoding="utf-8"), content_type="application/javascript")
 
 
 # --- Búsqueda global -------------------------------------------------------

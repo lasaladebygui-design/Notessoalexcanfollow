@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="es" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sin conexión · Notas</title>
+    <style>
+        body {
+            margin: 0; height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center;
+            gap: .75rem; background: #0c0d11; color: #f4f4f6; font-family: system-ui, sans-serif; text-align: center; padding: 1.5rem;
+        }
+        h1 { font-size: 1.3rem; margin: 0; }
+        p { color: #b9bac4; margin: 0; max-width: 280px; }
+        button {
+            margin-top: .5rem; background: #7c6bf0; color: #fff; border: none; border-radius: .7rem;
+            padding: .6rem 1.2rem; font-size: .9rem; font-weight: 600; cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <span style="font-size:2.5rem;">📡</span>
+    <h1>Sin conexión</h1>
+    <p>No se puede llegar a Notas ahora mismo. Revisa tu conexión e inténtalo otra vez.</p>
+    <button onclick="location.reload()">Reintentar</button>
+</body>
+</html>

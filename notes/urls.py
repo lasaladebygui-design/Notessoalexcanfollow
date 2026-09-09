@@ -7,6 +7,8 @@ app_name = "notes"
 urlpatterns = [
     path("", views.dashboard, name="dashboard"),
     path("analiticas/", views.stats, name="stats"),
+    path("estas-sin-conexion/", views.offline, name="offline"),
+    path("sw.js", views.service_worker, name="service-worker"),
     path("buscar/", views.global_search, name="search"),
 
     path("notas/", views.note_list, name="note-list"),
