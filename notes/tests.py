@@ -9,7 +9,7 @@ from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
 
-from .models import Category, Goal, GoalStep, Habit, LectureNote, Note, Priority, Subject, Tag, Task
+from .models import Category, Event, Goal, GoalStep, Habit, LectureNote, Note, Priority, Subject, Tag, Task
 
 _username_counter = count(1)
 
@@ -186,6 +186,26 @@ class CategoryAndTagTests(TestCase):
         note.refresh_from_db()
         self.assertIsNone(note.category)
 
+    def test_categoria_repetida_da_error_de_validacion_no_500(self):
+        # Bug real: form.is_valid() comprobaba la unicidad (user, name)
+        # antes de que la instancia tuviera el user puesto, así que
+        # colaba y el 500 saltaba en el INSERT a la base de datos.
+        Category.objects.create(user=self.user, name="Trabajo")
+        response = self.client.post(reverse("notes:category-list"), {
+            "name": "Trabajo", "color": "#2DD4BF", "icon": "",
+        })
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(Category.objects.filter(user=self.user, name="Trabajo").count(), 1)
+
+    def test_dos_usuarios_pueden_tener_categorias_con_el_mismo_nombre(self):
+        other = make_user("notes5b@test.local")
+        Category.objects.create(user=other, name="Trabajo")
+        response = self.client.post(reverse("notes:category-list"), {
+            "name": "Trabajo", "color": "#2DD4BF", "icon": "",
+        })
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(Category.objects.filter(user=self.user, name="Trabajo").exists())
+
 
 class CalendarSyncTests(TestCase):
     """Igual que el calendario de Top Secret: si falla la red al crear el
@@ -224,6 +244,66 @@ class CalendarViewTests(TestCase):
         self.client.logout()
         response = self.client.get(reverse("notes:calendar"))
         self.assertEqual(response.status_code, 302)
+
+
+class EventTests(TestCase):
+    def setUp(self):
+        self.user = make_user("notes22@test.local")
+        self.other = make_user("notes23@test.local")
+        self.client.login(username=self.user.username, password="Testpass123!")
+
+    def test_crear_evento(self):
+        response = self.client.post(reverse("notes:event-create"), {
+            "title": "Reunión", "description": "", "date": "2026-09-15",
+            "start_time": "10:00", "end_time": "11:00", "category": "",
+        })
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(Event.objects.filter(user=self.user, title="Reunión").exists())
+
+    def test_hora_de_fin_debe_ser_posterior_a_la_de_inicio(self):
+        response = self.client.post(reverse("notes:event-create"), {
+            "title": "Mal", "description": "", "date": "2026-09-15",
+            "start_time": "11:00", "end_time": "10:00", "category": "",
+        })
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(Event.objects.filter(title="Mal").exists())
+
+    def test_no_se_puede_editar_evento_ajeno(self):
+        event = Event.objects.create(user=self.other, title="Ajeno", date="2026-09-15")
+        response = self.client.get(reverse("notes:event-edit", args=[event.pk]))
+        self.assertEqual(response.status_code, 404)
+
+    def test_borrar_evento(self):
+        event = Event.objects.create(user=self.user, title="A borrar", date="2026-09-15")
+        self.client.post(reverse("notes:event-delete", args=[event.pk]))
+        self.assertFalse(Event.objects.filter(pk=event.pk).exists())
+
+
+class CalendarWeekDayViewTests(TestCase):
+    def setUp(self):
+        self.user = make_user("notes24@test.local")
+        self.client.login(username=self.user.username, password="Testpass123!")
+
+    def test_vista_semana_agrupa_por_dia(self):
+        Event.objects.create(user=self.user, title="Cita", date="2026-09-15", start_time="09:00")
+        response = self.client.get(reverse("notes:calendar"), {"view": "week", "date": "2026-09-15"})
+        self.assertEqual(response.status_code, 200)
+        days = response.context["days"]
+        target = next(d for d in days if d["date"].isoformat() == "2026-09-15")
+        self.assertEqual(len(target["items"]), 1)
+
+    def test_vista_dia_muestra_items_ordenados_por_hora(self):
+        Event.objects.create(user=self.user, title="Tarde", date="2026-09-15", start_time="15:00")
+        Event.objects.create(user=self.user, title="Mañana", date="2026-09-15", start_time="08:00")
+        response = self.client.get(reverse("notes:calendar"), {"view": "day", "date": "2026-09-15"})
+        titles = [item["obj"].title for item in response.context["items"]]
+        self.assertEqual(titles, ["Mañana", "Tarde"])
+
+    def test_item_lleva_el_color_de_su_categoria(self):
+        category = Category.objects.create(user=self.user, name="Trabajo", color="#ff0000")
+        Event.objects.create(user=self.user, title="Con color", date="2026-09-15", category=category)
+        response = self.client.get(reverse("notes:calendar"), {"view": "day", "date": "2026-09-15"})
+        self.assertEqual(response.context["items"][0]["color"], "#ff0000")
 
 
 class HabitTests(TestCase):
@@ -386,6 +466,14 @@ class SubjectAndLectureNoteTests(TestCase):
         })
         self.assertEqual(response.status_code, 302)
         self.assertTrue(Subject.objects.filter(user=self.user, name="Cálculo I").exists())
+
+    def test_asignatura_repetida_da_error_de_validacion_no_500(self):
+        Subject.objects.create(user=self.user, name="Cálculo I")
+        response = self.client.post(reverse("notes:subject-list"), {
+            "name": "Cálculo I", "color": "#7c6bf0", "icon": "📐",
+        })
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(Subject.objects.filter(user=self.user, name="Cálculo I").count(), 1)
 
     def test_anadir_apunte_a_una_asignatura(self):
         subject = Subject.objects.create(user=self.user, name="Historia")

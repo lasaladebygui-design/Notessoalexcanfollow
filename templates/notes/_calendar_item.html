@@ -1,0 +1,23 @@
+<li class="text-sm min-w-0">
+    <div class="flex items-center gap-1.5 flex-wrap mb-0.5">
+        {% if item.color %}<span class="w-2 h-2 rounded-full shrink-0" style="background: {{ item.color }};"></span>{% endif %}
+        {% if item.kind == "task" %}
+            <span class="pill {% if item.obj.priority == 'urgent' %}border-critical text-critical{% elif item.obj.priority == 'high' %}border-warn text-warn{% endif %}">{{ item.obj.get_priority_display }}</span>
+        {% elif item.kind == "note" %}
+            <span class="pill">📝 Nota</span>
+        {% else %}
+            {% if item.obj.start_time %}
+            <span class="text-xs text-ink-muted tabular-nums">{{ item.obj.start_time|time:"H:i" }}{% if item.obj.end_time %}–{{ item.obj.end_time|time:"H:i" }}{% endif %}</span>
+            {% else %}
+            <span class="pill">📅 Evento</span>
+            {% endif %}
+        {% endif %}
+    </div>
+    {% if item.kind == "task" %}
+    <a href="{% url 'notes:task-edit' pk=item.obj.pk %}" class="block break-words {% if item.obj.is_done %}line-through text-ink-muted{% else %}text-ink-primary{% endif %}">{{ item.obj.title }}</a>
+    {% elif item.kind == "note" %}
+    <a href="{% url 'notes:note-edit' pk=item.obj.pk %}" class="block break-words text-ink-primary">{{ item.obj.title }}</a>
+    {% else %}
+    <a href="{% url 'notes:event-edit' pk=item.obj.pk %}" class="block break-words text-ink-primary">{{ item.obj.title }}</a>
+    {% endif %}
+</li>

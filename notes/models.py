@@ -293,3 +293,31 @@ class LectureNote(models.Model):
 
     def __str__(self):
         return self.title or f"{self.subject} · {self.date}"
+
+
+class Event(models.Model):
+    """Evento de calendario propiamente dicho -- a diferencia de una Task
+    (que tiene fecha límite pero es ante todo "algo por hacer") o una Note
+    (recordatorio suelto), un Event es una cita con hora: una reunión, una
+    quedada, una clase puntual. Comparte `category` con el resto de la app
+    para heredar su color en el calendario sin inventar un sistema de
+    colores aparte."""
+
+    user = models.ForeignKey(User, verbose_name="usuario", on_delete=models.CASCADE, related_name="events")
+    title = models.CharField("título", max_length=200)
+    description = models.TextField("descripción", blank=True)
+    date = models.DateField("fecha")
+    start_time = models.TimeField("hora de inicio", null=True, blank=True)
+    end_time = models.TimeField("hora de fin", null=True, blank=True)
+    category = models.ForeignKey(Category, verbose_name="categoría", on_delete=models.SET_NULL, null=True, blank=True, related_name="events")
+    google_event_id = models.CharField("id de evento en Google Calendar", max_length=255, blank=True, editable=False)
+    created_at = models.DateTimeField("creado", auto_now_add=True)
+    updated_at = models.DateTimeField("última edición", auto_now=True)
+
+    class Meta:
+        verbose_name = "evento"
+        verbose_name_plural = "eventos"
+        ordering = ["date", "start_time"]
+
+    def __str__(self):
+        return self.title

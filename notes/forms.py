@@ -1,6 +1,6 @@
 from django import forms
 
-from .models import Category, Goal, GoalStep, Habit, LectureNote, Note, Subject, Tag, Task
+from .models import Category, Event, Goal, GoalStep, Habit, LectureNote, Note, Subject, Tag, Task
 
 
 class NoteForm(forms.ModelForm):
@@ -129,3 +129,28 @@ class LectureNoteForm(forms.ModelForm):
         if commit:
             instance.save()
         return instance
+
+
+class EventForm(forms.ModelForm):
+    class Meta:
+        model = Event
+        fields = ["title", "description", "date", "start_time", "end_time", "category"]
+        widgets = {
+            "description": forms.Textarea(attrs={"rows": 3}),
+            "date": forms.DateInput(format="%Y-%m-%d", attrs={"type": "date"}),
+            "start_time": forms.TimeInput(format="%H:%M", attrs={"type": "time"}),
+            "end_time": forms.TimeInput(format="%H:%M", attrs={"type": "time"}),
+        }
+
+    def __init__(self, *args, user=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["category"].queryset = Category.objects.filter(user=user)
+        self.fields["category"].required = False
+        self.fields["category"].empty_label = "Sin categoría"
+
+    def clean(self):
+        cleaned = super().clean()
+        start, end = cleaned.get("start_time"), cleaned.get("end_time")
+        if start and end and end <= start:
+            raise forms.ValidationError("La hora de fin debe ser posterior a la de inicio.")
+        return cleaned

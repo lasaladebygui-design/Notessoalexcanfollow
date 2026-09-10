@@ -5,6 +5,7 @@ from datetime import date, timedelta
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.core.exceptions import ValidationError
 from django.db.models import Count, Q
 from django.http import Http404, HttpResponse, HttpResponseBadRequest, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -16,9 +17,10 @@ from accounts.google_calendar import google_calendar_enabled
 
 from .calendar_sync import delete_event_for, sync_event
 from .forms import (
-    CategoryForm, GoalForm, GoalStepForm, HabitForm, LectureNoteForm, NoteForm, SubjectForm, TagForm, TaskForm,
+    CategoryForm, EventForm, GoalForm, GoalStepForm, HabitForm, LectureNoteForm, NoteForm, SubjectForm, TagForm,
+    TaskForm,
 )
-from .models import Category, Goal, GoalStep, Habit, LectureNote, Note, Priority, Subject, Tag, Task
+from .models import Category, Event, Goal, GoalStep, Habit, LectureNote, Note, Priority, Subject, Tag, Task
 from .services import dashboard_summary, greeting, productivity_stats
 
 MONTH_NAMES_ES = [
@@ -260,9 +262,19 @@ def category_list(request):
         if form.is_valid():
             category = form.save(commit=False)
             category.user = request.user
-            category.save()
-            messages.success(request, f"Categoría «{category.name}» creada.")
-            return redirect("notes:category-list")
+            # form.is_valid() NO comprueba el UniqueConstraint (user, name):
+            # "user" no es un campo del form, y Django excluye de la
+            # validación de unicidad cualquier campo del modelo que el form
+            # no declare -- así que sin esto, un nombre repetido pasaba
+            # is_valid() y reventaba con un 500 al guardar.
+            try:
+                category.validate_constraints()
+            except ValidationError as e:
+                form.add_error(None, e)
+            else:
+                category.save()
+                messages.success(request, f"Categoría «{category.name}» creada.")
+                return redirect("notes:category-list")
     else:
         form = CategoryForm()
 
@@ -434,9 +446,17 @@ def subject_list(request):
         if form.is_valid():
             subject = form.save(commit=False)
             subject.user = request.user
-            subject.save()
-            messages.success(request, f"Asignatura «{subject.name}» creada.")
-            return redirect("notes:subject-list")
+            # Mismo motivo que en category_list: "user" no es un campo del
+            # form, así que form.is_valid() no comprueba el UniqueConstraint
+            # (user, name) -- hay que validarlo a mano tras ponerle el user.
+            try:
+                subject.validate_constraints()
+            except ValidationError as e:
+                form.add_error(None, e)
+            else:
+                subject.save()
+                messages.success(request, f"Asignatura «{subject.name}» creada.")
+                return redirect("notes:subject-list")
     else:
         form = SubjectForm()
 
@@ -550,7 +570,56 @@ def lecture_note_pdf(request, pk):
     return response
 
 
+# --- Eventos ---------------------------------------------------------------
+
+@login_required
+def event_create(request):
+    initial_date = request.GET.get("date", "")
+    if request.method == "POST":
+        form = EventForm(request.POST, user=request.user)
+        if form.is_valid():
+            event = form.save(commit=False)
+            event.user = request.user
+            event.save()
+            sync_event(request.user, event, "date", old_date=None)
+            messages.success(request, "Evento creado.")
+            return redirect(f"{reverse('notes:calendar')}?view=day&date={event.date.isoformat()}")
+    else:
+        initial = {"date": initial_date} if initial_date else {}
+        form = EventForm(user=request.user, initial=initial)
+    return render(request, "notes/event_form.html", {"form": form, "is_new": True})
+
+
+@login_required
+def event_edit(request, pk):
+    event = get_object_or_404(Event, pk=pk, user=request.user)
+    if request.method == "POST":
+        old_date = event.date
+        form = EventForm(request.POST, instance=event, user=request.user)
+        if form.is_valid():
+            event = form.save()
+            sync_event(request.user, event, "date", old_date=old_date)
+            messages.success(request, "Evento actualizado.")
+            return redirect(f"{reverse('notes:calendar')}?view=day&date={event.date.isoformat()}")
+    else:
+        form = EventForm(instance=event, user=request.user)
+    return render(request, "notes/event_form.html", {"form": form, "event": event, "is_new": False})
+
+
+@login_required
+@require_POST
+def event_delete(request, pk):
+    event = get_object_or_404(Event, pk=pk, user=request.user)
+    delete_event_for(request.user, event)
+    event_date = event.date
+    event.delete()
+    return redirect(f"{reverse('notes:calendar')}?view=day&date={event_date.isoformat()}")
+
+
 # --- Calendario ----------------------------------------------------------
+
+WEEKDAY_NAMES_ES = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"]
+
 
 def _parse_calendar_month(request, today):
     try:
@@ -562,20 +631,67 @@ def _parse_calendar_month(request, today):
     return year, month, first_of_month
 
 
+def _parse_calendar_date(request, today):
+    raw = request.GET.get("date")
+    if not raw:
+        return today
+    try:
+        return date.fromisoformat(raw)
+    except ValueError:
+        raise Http404
+
+
+def _color_for(obj):
+    category = getattr(obj, "category", None)
+    return category.color if category else None
+
+
+def _collect_items(user, start, end):
+    """Tareas, notas y eventos de un usuario entre dos fechas (incluidas),
+    agrupados por día y ya con el color de su categoría (o None) y su hora
+    (None para tareas/notas, que no tienen) para poder ordenar dentro del
+    día -- lo comparte el mes, la semana y el día para no triplicar la
+    misma consulta tres veces."""
+    tasks = Task.objects.filter(user=user, due_date__gte=start, due_date__lte=end).select_related("category")
+    notes = Note.objects.filter(user=user, reminder_date__gte=start, reminder_date__lte=end).select_related("category")
+    events = Event.objects.filter(user=user, date__gte=start, date__lte=end).select_related("category")
+
+    items_by_date = {}
+    for task in tasks:
+        items_by_date.setdefault(task.due_date, []).append({"kind": "task", "obj": task, "color": _color_for(task), "time": None})
+    for note in notes:
+        items_by_date.setdefault(note.reminder_date, []).append({"kind": "note", "obj": note, "color": _color_for(note), "time": None})
+    for event in events:
+        items_by_date.setdefault(event.date, []).append({"kind": "event", "obj": event, "color": _color_for(event), "time": event.start_time})
+
+    for day_items in items_by_date.values():
+        day_items.sort(key=lambda i: (i["time"] is None, i["time"]))
+    return items_by_date
+
+
+def _calendar_context(request):
+    return {
+        "google_calendar_enabled": google_calendar_enabled(),
+        "google_calendar_connected": hasattr(request.user, "google_calendar_connection"),
+    }
+
+
 @login_required
 def calendar_view(request):
+    view = request.GET.get("view", "month")
+    if view == "week":
+        return _calendar_week(request)
+    if view == "day":
+        return _calendar_day(request)
+    return _calendar_month(request)
+
+
+def _calendar_month(request):
     today = timezone.localdate()
     year, month, first_of_month = _parse_calendar_month(request, today)
 
     raw_weeks = calendar_module.Calendar(firstweekday=0).monthdatescalendar(year, month)
-
-    tasks = Task.objects.filter(user=request.user, due_date__year=year, due_date__month=month)
-    notes = Note.objects.filter(user=request.user, reminder_date__year=year, reminder_date__month=month)
-    items_by_date = {}
-    for task in tasks:
-        items_by_date.setdefault(task.due_date, []).append({"kind": "task", "obj": task})
-    for note in notes:
-        items_by_date.setdefault(note.reminder_date, []).append({"kind": "note", "obj": note})
+    items_by_date = _collect_items(request.user, raw_weeks[0][0], raw_weeks[-1][-1])
 
     weeks = [
         [
@@ -589,10 +705,54 @@ def calendar_view(request):
     next_month_date = (first_of_month + timedelta(days=32)).replace(day=1)
 
     return render(request, "notes/calendar.html", {
+        **_calendar_context(request),
+        "view": "month",
         "weeks": weeks, "year": year, "month": month,
         "month_label": f"{MONTH_NAMES_ES[month]} {year}",
         "prev_year": prev_month_date.year, "prev_month": prev_month_date.month,
         "next_year": next_month_date.year, "next_month": next_month_date.month,
-        "google_calendar_enabled": google_calendar_enabled(),
-        "google_calendar_connected": hasattr(request.user, "google_calendar_connection"),
+        "today_iso": today.isoformat(),
+    })
+
+
+def _calendar_week(request):
+    today = timezone.localdate()
+    anchor = _parse_calendar_date(request, today)
+    week_start = anchor - timedelta(days=anchor.weekday())
+    week_end = week_start + timedelta(days=6)
+    items_by_date = _collect_items(request.user, week_start, week_end)
+
+    days = [
+        {
+            "date": day, "label": WEEKDAY_NAMES_ES[day.weekday()], "is_today": day == today,
+            "items": items_by_date.get(day, []),
+        }
+        for day in (week_start + timedelta(days=i) for i in range(7))
+    ]
+
+    return render(request, "notes/calendar.html", {
+        **_calendar_context(request),
+        "view": "week",
+        "days": days,
+        "week_start": week_start, "week_end": week_end,
+        "prev_week": (week_start - timedelta(days=7)).isoformat(),
+        "next_week": (week_start + timedelta(days=7)).isoformat(),
+        "today_iso": today.isoformat(),
+    })
+
+
+def _calendar_day(request):
+    today = timezone.localdate()
+    day = _parse_calendar_date(request, today)
+    items_by_date = _collect_items(request.user, day, day)
+
+    return render(request, "notes/calendar.html", {
+        **_calendar_context(request),
+        "view": "day",
+        "day": day, "is_today": day == today,
+        "items": items_by_date.get(day, []),
+        "weekday_label": WEEKDAY_NAMES_ES[day.weekday()],
+        "prev_day": (day - timedelta(days=1)).isoformat(),
+        "next_day": (day + timedelta(days=1)).isoformat(),
+        "today_iso": today.isoformat(),
     })

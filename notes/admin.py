@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import Category, LectureNote, Note, Subject, Tag, Task
+from .models import Category, Event, LectureNote, Note, Subject, Tag, Task
 
 
 @admin.register(Category)
@@ -43,3 +43,10 @@ class LectureNoteAdmin(admin.ModelAdmin):
     list_display = ("__str__", "subject", "date")
     list_filter = ("subject",)
     search_fields = ("title", "content")
+
+
+@admin.register(Event)
+class EventAdmin(admin.ModelAdmin):
+    list_display = ("title", "user", "date", "start_time", "end_time", "category")
+    list_filter = ("user", "category")
+    search_fields = ("title", "description")

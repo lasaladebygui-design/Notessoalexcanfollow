@@ -5,22 +5,34 @@
 
     <div class="flex items-center justify-between gap-4 flex-wrap">
         <h1 class="font-display text-2xl font-bold text-ink-primary">Calendario</h1>
-        {% if google_calendar_enabled %}
-        {% if google_calendar_connected %}
-        <form method="post" action="{% url 'accounts:google-calendar-disconnect' %}">
-            {% csrf_token %}
-            <button type="submit" class="btn-primary" title="Pulsa para desconectar">📆 Google Calendar conectado</button>
-        </form>
-        {% else %}
-        <a href="{% url 'accounts:google-calendar-connect' %}" class="btn-ghost">📆 Conectar con Google Calendar</a>
-        {% endif %}
-        {% endif %}
+        <div class="flex items-center gap-2">
+            <a href="{% url 'notes:event-create' %}?date={% if view == 'day' %}{{ day|date:'Y-m-d' }}{% else %}{{ today_iso }}{% endif %}" class="btn-primary">+ Evento</a>
+            {% if google_calendar_enabled %}
+            {% if google_calendar_connected %}
+            <form method="post" action="{% url 'accounts:google-calendar-disconnect' %}">
+                {% csrf_token %}
+                <button type="submit" class="btn-ghost" title="Pulsa para desconectar">📆 Conectado</button>
+            </form>
+            {% else %}
+            <a href="{% url 'accounts:google-calendar-connect' %}" class="btn-ghost">📆 Conectar Google Calendar</a>
+            {% endif %}
+            {% endif %}
+        </div>
     </div>
 
+    <div class="flex items-center justify-between gap-3 flex-wrap">
+        <div class="flex gap-1 rounded-lg border border-line p-1 w-fit">
+            <a href="?view=month" class="px-3 py-1.5 rounded-md text-sm font-medium {% if view == 'month' %}bg-accent/15 text-accent{% else %}text-ink-secondary hover:text-ink-primary{% endif %}">Mes</a>
+            <a href="?view=week&date={{ today_iso }}" class="px-3 py-1.5 rounded-md text-sm font-medium {% if view == 'week' %}bg-accent/15 text-accent{% else %}text-ink-secondary hover:text-ink-primary{% endif %}">Semana</a>
+            <a href="?view=day&date={{ today_iso }}" class="px-3 py-1.5 rounded-md text-sm font-medium {% if view == 'day' %}bg-accent/15 text-accent{% else %}text-ink-secondary hover:text-ink-primary{% endif %}">Día</a>
+        </div>
+    </div>
+
+    {% if view == "month" %}
     <div class="flex items-center justify-center gap-4">
-        <a href="?year={{ prev_year }}&month={{ prev_month }}" class="btn-ghost">← Anterior</a>
+        <a href="?view=month&year={{ prev_year }}&month={{ prev_month }}" class="btn-ghost">← Anterior</a>
         <span class="font-display font-semibold text-lg">{{ month_label|capfirst }}</span>
-        <a href="?year={{ next_year }}&month={{ next_month }}" class="btn-ghost">Siguiente →</a>
+        <a href="?view=month&year={{ next_year }}&month={{ next_month }}" class="btn-ghost">Siguiente →</a>
     </div>
 
     <div class="grid grid-cols-7 gap-1.5 text-center text-xs text-ink-muted font-medium">
@@ -32,11 +44,17 @@
             {% with day_key=day.date|date:"Y-m-d" %}
             <button type="button"
                     @click="selected = (selected === '{{ day_key }}' ? null : '{{ day_key }}')"
-                    class="aspect-square rounded-lg border text-sm flex flex-col items-center justify-center gap-0.5 transition-colors
+                    class="aspect-square rounded-lg border text-sm flex flex-col items-center justify-center gap-1 transition-colors
                         {% if not day.in_month %}border-transparent text-ink-muted/40{% elif day.is_today %}border-accent text-accent font-bold{% else %}border-line text-ink-secondary{% endif %}"
                     :class="selected === '{{ day_key }}' ? 'bg-accent/15' : ''">
                 <span>{{ day.date.day }}</span>
-                {% if day.items %}<span class="w-1.5 h-1.5 rounded-full bg-accent"></span>{% endif %}
+                {% if day.items %}
+                <span class="flex gap-0.5">
+                    {% for item in day.items|slice:":4" %}
+                    <span class="w-1.5 h-1.5 rounded-full" style="background: {{ item.color|default:'#7c6bf0' }};"></span>
+                    {% endfor %}
+                </span>
+                {% endif %}
             </button>
             {% endwith %}
             {% endfor %}
@@ -53,22 +71,57 @@
                 <button type="button" @click="selected = null" class="text-ink-muted hover:text-ink-primary">✕</button>
             </div>
             <ul class="space-y-2">
-                {% for item in day.items %}
-                <li class="flex items-center gap-2 text-sm">
-                    {% if item.kind == "task" %}
-                    <span class="pill {% if item.obj.priority == 'urgent' %}border-critical text-critical{% elif item.obj.priority == 'high' %}border-warn text-warn{% endif %}">{{ item.obj.get_priority_display }}</span>
-                    <a href="{% url 'notes:task-edit' pk=item.obj.pk %}">{{ item.obj.title }}</a>
-                    {% else %}
-                    <span class="pill">📝 Nota</span>
-                    <a href="{% url 'notes:note-edit' pk=item.obj.pk %}">{{ item.obj.title }}</a>
-                    {% endif %}
-                </li>
-                {% endfor %}
+                {% for item in day.items %}{% include "notes/_calendar_item.html" %}{% endfor %}
             </ul>
         </div>
         {% endwith %}
         {% endif %}
         {% endfor %}
     {% endfor %}
+
+    {% elif view == "week" %}
+    <div class="flex items-center justify-center gap-4">
+        <a href="?view=week&date={{ prev_week }}" class="btn-ghost">← Semana anterior</a>
+        <span class="font-display font-semibold text-lg">{{ week_start|date:"d/m" }} – {{ week_end|date:"d/m/Y" }}</span>
+        <a href="?view=week&date={{ next_week }}" class="btn-ghost">Siguiente semana →</a>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-7 gap-3">
+        {% for day in days %}
+        <div class="card-panel {% if day.is_today %}border-accent/50{% endif %} flex flex-col gap-2 min-h-[120px]">
+            <div class="flex items-baseline justify-between">
+                <span class="text-xs text-ink-muted uppercase tracking-wide">{{ day.label }}</span>
+                <a href="?view=day&date={{ day.date|date:'Y-m-d' }}" class="text-sm font-semibold {% if day.is_today %}text-accent{% else %}text-ink-primary{% endif %} hover:text-accent">{{ day.date|date:"d/m" }}</a>
+            </div>
+            {% if day.items %}
+            <ul class="space-y-1.5">
+                {% for item in day.items %}{% include "notes/_calendar_item.html" %}{% endfor %}
+            </ul>
+            {% else %}
+            <p class="text-xs text-ink-muted">Sin nada.</p>
+            {% endif %}
+            <a href="{% url 'notes:event-create' %}?date={{ day.date|date:'Y-m-d' }}" class="text-xs text-ink-muted hover:text-accent mt-auto">+ Evento</a>
+        </div>
+        {% endfor %}
+    </div>
+
+    {% else %}
+    <div class="flex items-center justify-center gap-4">
+        <a href="?view=day&date={{ prev_day }}" class="btn-ghost">← Anterior</a>
+        <span class="font-display font-semibold text-lg">{{ weekday_label }}, {{ day|date:"j \d\e F Y" }}</span>
+        <a href="?view=day&date={{ next_day }}" class="btn-ghost">Siguiente →</a>
+    </div>
+
+    <div class="card-panel max-w-lg mx-auto space-y-3">
+        {% if items %}
+        <ul class="space-y-2.5">
+            {% for item in items %}{% include "notes/_calendar_item.html" %}{% endfor %}
+        </ul>
+        {% else %}
+        <p class="text-sm text-ink-muted">Nada para este día.</p>
+        {% endif %}
+        <a href="{% url 'notes:event-create' %}?date={{ day|date:'Y-m-d' }}" class="text-sm text-accent hover:underline">+ Añadir evento</a>
+    </div>
+    {% endif %}
 </div>
 {% endblock %}

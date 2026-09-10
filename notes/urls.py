@@ -52,5 +52,9 @@ urlpatterns = [
     path("uni/apunte/<int:pk>/pdf/", views.lecture_note_pdf, name="lecture-note-pdf"),
     path("compartido/<uuid:token>/", views.shared_subject, name="shared-subject"),
 
+    path("eventos/nuevo/", views.event_create, name="event-create"),
+    path("eventos/<int:pk>/editar/", views.event_edit, name="event-edit"),
+    path("eventos/<int:pk>/borrar/", views.event_delete, name="event-delete"),
+
     path("calendario/", views.calendar_view, name="calendar"),
 ]

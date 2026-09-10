@@ -28,15 +28,19 @@
 
     <div class="card-panel max-w-lg space-y-4">
         <h2 class="font-display text-lg font-semibold">Nueva asignatura</h2>
-        <form method="post" class="flex gap-2 items-end flex-wrap">
+        <form method="post" class="space-y-2">
             {% csrf_token %}
-            {% for field in form %}
-            <div class="flex-1 min-w-[100px]">
-                <label class="block text-xs font-medium text-ink-secondary mb-1.5">{{ field.label }}</label>
-                {{ field }}
+            {% if form.non_field_errors %}<p class="field-error">{{ form.non_field_errors.0 }}</p>{% endif %}
+            <div class="flex gap-2 items-end flex-wrap">
+                {% for field in form %}
+                <div class="flex-1 min-w-[100px]">
+                    <label class="block text-xs font-medium text-ink-secondary mb-1.5">{{ field.label }}</label>
+                    {{ field }}
+                    {% for error in field.errors %}<p class="field-error">{{ error }}</p>{% endfor %}
+                </div>
+                {% endfor %}
+                <button type="submit" class="btn-primary">+ Añadir</button>
             </div>
-            {% endfor %}
-            <button type="submit" class="btn-primary">+ Añadir</button>
         </form>
     </div>
 
