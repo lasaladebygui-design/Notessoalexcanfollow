@@ -1,22 +1,32 @@
 {% url 'notes:dashboard' as url_dashboard %}
+{% url 'notes:calendar' as url_calendar %}
 {% url 'notes:note-list' as url_notes %}
 {% url 'notes:task-list' as url_tasks %}
-{% url 'notes:calendar' as url_calendar %}
-{% url 'notes:subject-list' as url_subjects %}
+{% url 'notes:category-list' as url_organize %}
 {% url 'notes:habit-list' as url_habits %}
 {% url 'notes:goal-list' as url_goals %}
-{% url 'notes:category-list' as url_organize %}
+{% url 'notes:subject-list' as url_subjects %}
 {% url 'notes:stats' as url_stats %}
+
 <a href="{{ url_dashboard }}" class="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors duration-150 {% if request.path == url_dashboard %}bg-accent/15 text-accent{% else %}text-ink-secondary hover:bg-surface-raised hover:text-ink-primary{% endif %}">🏠 Resumen</a>
-<a href="{{ url_notes }}" class="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors duration-150 {% if 'note' in request.resolver_match.url_name %}bg-accent/15 text-accent{% else %}text-ink-secondary hover:bg-surface-raised hover:text-ink-primary{% endif %}">📝 Notas</a>
-<a href="{{ url_tasks }}" class="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors duration-150 {% if 'task' in request.resolver_match.url_name %}bg-accent/15 text-accent{% else %}text-ink-secondary hover:bg-surface-raised hover:text-ink-primary{% endif %}">✅ Tareas</a>
 <a href="{{ url_calendar }}" class="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors duration-150 {% if request.path == url_calendar %}bg-accent/15 text-accent{% else %}text-ink-secondary hover:bg-surface-raised hover:text-ink-primary{% endif %}">📅 Calendario</a>
-<a href="{{ url_habits }}" class="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors duration-150 {% if request.path == url_habits %}bg-accent/15 text-accent{% else %}text-ink-secondary hover:bg-surface-raised hover:text-ink-primary{% endif %}">🔁 Hábitos</a>
-<a href="{{ url_subjects }}" class="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors duration-150 {% if 'subject' in request.resolver_match.url_name or 'lecture' in request.resolver_match.url_name %}bg-accent/15 text-accent{% else %}text-ink-secondary hover:bg-surface-raised hover:text-ink-primary{% endif %}">🎓 Uni</a>
-<a href="{{ url_goals }}" class="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors duration-150 {% if 'goal' in request.resolver_match.url_name %}bg-accent/15 text-accent{% else %}text-ink-secondary hover:bg-surface-raised hover:text-ink-primary{% endif %}">🎯 Objetivos</a>
+
+<p class="px-3 pt-4 pb-1 text-[0.68rem] font-semibold uppercase tracking-wider text-ink-muted">Organización</p>
+<a href="{{ url_tasks }}" class="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors duration-150 {% if 'task' in request.resolver_match.url_name %}bg-accent/15 text-accent{% else %}text-ink-secondary hover:bg-surface-raised hover:text-ink-primary{% endif %}">✅ Tareas</a>
+<a href="{{ url_notes }}" class="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors duration-150 {% if 'note' in request.resolver_match.url_name %}bg-accent/15 text-accent{% else %}text-ink-secondary hover:bg-surface-raised hover:text-ink-primary{% endif %}">📝 Notas</a>
 <a href="{{ url_organize }}" class="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors duration-150 {% if request.path == url_organize %}bg-accent/15 text-accent{% else %}text-ink-secondary hover:bg-surface-raised hover:text-ink-primary{% endif %}">🗂️ Organizar</a>
+
+<p class="px-3 pt-4 pb-1 text-[0.68rem] font-semibold uppercase tracking-wider text-ink-muted">Crecimiento</p>
+<a href="{{ url_habits }}" class="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors duration-150 {% if request.path == url_habits %}bg-accent/15 text-accent{% else %}text-ink-secondary hover:bg-surface-raised hover:text-ink-primary{% endif %}">🔁 Hábitos</a>
+<a href="{{ url_goals }}" class="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors duration-150 {% if 'goal' in request.resolver_match.url_name %}bg-accent/15 text-accent{% else %}text-ink-secondary hover:bg-surface-raised hover:text-ink-primary{% endif %}">🎯 Objetivos</a>
+
+<p class="px-3 pt-4 pb-1 text-[0.68rem] font-semibold uppercase tracking-wider text-ink-muted">Estudios</p>
+<a href="{{ url_subjects }}" class="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors duration-150 {% if 'subject' in request.resolver_match.url_name or 'lecture' in request.resolver_match.url_name %}bg-accent/15 text-accent{% else %}text-ink-secondary hover:bg-surface-raised hover:text-ink-primary{% endif %}">🎓 Uni</a>
+
+<p class="px-3 pt-4 pb-1 text-[0.68rem] font-semibold uppercase tracking-wider text-ink-muted">Insights</p>
 <a href="{{ url_stats }}" class="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors duration-150 {% if request.path == url_stats %}bg-accent/15 text-accent{% else %}text-ink-secondary hover:bg-surface-raised hover:text-ink-primary{% endif %}">📊 Analíticas</a>
-<form method="post" action="{% url 'accounts:logout' %}" class="pt-2 mt-2 border-t border-line">
+
+<form method="post" action="{% url 'accounts:logout' %}" class="pt-4 mt-4 border-t border-line">
     {% csrf_token %}
     <button type="submit" class="w-full flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium text-ink-secondary hover:bg-surface-raised hover:text-ink-primary text-left">🚪 Salir</button>
 </form>

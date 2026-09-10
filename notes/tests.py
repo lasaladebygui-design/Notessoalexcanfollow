@@ -225,6 +225,26 @@ class CalendarSyncTests(TestCase):
         task = Task.objects.get(title="Con fecha")
         self.assertEqual(task.google_event_id, "")
 
+    @patch("notes.calendar_sync.google_create_event")
+    @patch("notes.calendar_sync.google_calendar_enabled", return_value=True)
+    def test_respuesta_rara_de_google_no_rompe_la_pagina(self, mock_enabled, mock_create_event):
+        # Mismo bug que en Top Secret (ver el comentario en
+        # calendar_sync.py): create_event() puede levantar KeyError si
+        # Google devuelve un cuerpo sin "id" -- antes solo se cazaba
+        # RequestException, así que esto daba un 500 aunque la tarea ya
+        # se hubiera guardado.
+        from accounts.models import GoogleCalendarConnection
+        GoogleCalendarConnection.objects.create(user=self.user, refresh_token="r")
+        mock_create_event.side_effect = KeyError("id")
+
+        response = self.client.post(reverse("notes:task-create"), {
+            "title": "Con fecha rara", "description": "", "category": "", "tags": [],
+            "priority": Priority.MEDIUM, "due_date": "2026-10-01", "parent": "",
+        })
+        self.assertEqual(response.status_code, 302)
+        task = Task.objects.get(title="Con fecha rara")
+        self.assertEqual(task.google_event_id, "")
+
 
 class CalendarViewTests(TestCase):
     def setUp(self):

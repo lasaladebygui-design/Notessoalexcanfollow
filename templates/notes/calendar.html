@@ -26,6 +26,7 @@
             <a href="?view=week&date={{ today_iso }}" class="px-3 py-1.5 rounded-md text-sm font-medium {% if view == 'week' %}bg-accent/15 text-accent{% else %}text-ink-secondary hover:text-ink-primary{% endif %}">Semana</a>
             <a href="?view=day&date={{ today_iso }}" class="px-3 py-1.5 rounded-md text-sm font-medium {% if view == 'day' %}bg-accent/15 text-accent{% else %}text-ink-secondary hover:text-ink-primary{% endif %}">Día</a>
         </div>
+        <a href="{% if view == 'month' %}?view=month{% else %}?view={{ view }}&date={{ today_iso }}{% endif %}" class="btn-ghost !py-1.5 !px-3 text-sm">Hoy</a>
     </div>
 
     {% if view == "month" %}

@@ -1,7 +1,10 @@
 """Sincronización con Google Calendar compartida por Note y Task -- misma
 idea que el calendario de Top Secret (ver apps/secret/views.py): si
 falla la red, no debe impedir guardar la nota/tarea, solo se deja sin
-sincronizar para la próxima vez."""
+sincronizar para la próxima vez. Se captura también KeyError/ValueError,
+no solo RequestException: una respuesta de Google con un cuerpo
+inesperado (sin "id", JSON raro) levanta esas dos, y sin cazarlas se
+colaban como un 500 aunque la nota/tarea ya se hubiera guardado."""
 import requests
 
 from accounts.google_calendar import create_event as google_create_event
@@ -21,7 +24,7 @@ def sync_event(request_user, obj, date_field, old_date):
     if obj.google_event_id and (date_changed or not new_date):
         try:
             google_delete_event(connection, obj.google_event_id)
-        except requests.RequestException:
+        except (requests.RequestException, KeyError, ValueError):
             pass
         obj.google_event_id = ""
 
@@ -29,7 +32,7 @@ def sync_event(request_user, obj, date_field, old_date):
         description = getattr(obj, "body", "") or getattr(obj, "description", "")
         try:
             obj.google_event_id = google_create_event(connection, obj.title, new_date, description=description)
-        except requests.RequestException:
+        except (requests.RequestException, KeyError, ValueError):
             pass
 
     obj.save(update_fields=["google_event_id"])
@@ -39,5 +42,5 @@ def delete_event_for(request_user, obj):
     if obj.google_event_id and hasattr(request_user, "google_calendar_connection"):
         try:
             google_delete_event(request_user.google_calendar_connection, obj.google_event_id)
-        except requests.RequestException:
+        except (requests.RequestException, KeyError, ValueError):
             pass
