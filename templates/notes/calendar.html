@@ -64,19 +64,22 @@
 
     {% for week in weeks %}
         {% for day in week %}
-        {% if day.items %}
         {% with day_key=day.date|date:"Y-m-d" %}
         <div x-show="selected === '{{ day_key }}'" x-cloak x-transition class="card-panel">
             <div class="flex items-center justify-between mb-3">
                 <h3 class="font-semibold">{{ day.date|date:"l j \d\e F"|capfirst }}</h3>
                 <button type="button" @click="selected = null" class="text-ink-muted hover:text-ink-primary">✕</button>
             </div>
-            <ul class="space-y-2">
+            {% if day.items %}
+            <ul class="space-y-2 mb-3">
                 {% for item in day.items %}{% include "notes/_calendar_item.html" %}{% endfor %}
             </ul>
+            {% else %}
+            <p class="text-sm text-ink-muted mb-3">Nada apuntado todavía.</p>
+            {% endif %}
+            <a href="{% url 'notes:event-create' %}?date={{ day_key }}" class="text-sm text-accent hover:underline">+ Apuntar algo este día</a>
         </div>
         {% endwith %}
-        {% endif %}
         {% endfor %}
     {% endfor %}
 
