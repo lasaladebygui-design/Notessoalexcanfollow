@@ -65,6 +65,45 @@ class NoteCrudTests(TestCase):
         self.client.post(reverse("notes:note-delete", args=[note.pk]))
         self.assertFalse(Note.objects.filter(pk=note.pk).exists())
 
+    def test_autoguardado_al_editar_devuelve_json_sin_redirigir(self):
+        # El autoguardado (ver setupAutosave en base.html) manda el mismo
+        # POST que el boton "Guardar cambios" pero marcado con esta
+        # cabecera -- no tiene que redirigir (nadie sigue esa redireccion
+        # desde una llamada de fondo), solo confirmar que se guardo.
+        note = Note.objects.create(user=self.user, title="Editando")
+        response = self.client.post(
+            reverse("notes:note-edit", args=[note.pk]),
+            {"title": "Editando en vivo", "body": "cambiando...", "category": "", "tags": []},
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), {"ok": True})
+        note.refresh_from_db()
+        self.assertEqual(note.title, "Editando en vivo")
+
+    def test_autoguardado_al_crear_devuelve_la_url_de_edicion(self):
+        # El primer autoguardado de una nota nueva la crea de verdad y
+        # devuelve a donde debe apuntar el formulario a partir de ahora,
+        # para que los siguientes autoguardados actualicen esa misma nota
+        # en vez de crear una nueva en cada tecla.
+        response = self.client.post(
+            reverse("notes:note-create"),
+            {"title": "Recien creada", "body": "", "category": "", "tags": []},
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+        )
+        self.assertEqual(response.status_code, 200)
+        note = Note.objects.get(title="Recien creada")
+        self.assertEqual(response.json(), {"ok": True, "edit_url": reverse("notes:note-edit", args=[note.pk])})
+
+    def test_autoguardado_con_datos_invalidos_no_rompe_ni_redirige(self):
+        response = self.client.post(
+            reverse("notes:note-create"),
+            {"title": "", "body": "sin titulo", "category": "", "tags": []},
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertFalse(Note.objects.filter(body="sin titulo").exists())
+
 
 class TaskCrudTests(TestCase):
     def setUp(self):
@@ -131,6 +170,34 @@ class TaskCrudTests(TestCase):
 
         response = self.client.get(reverse("notes:task-list"), {"priority": Priority.URGENT})
         self.assertEqual(list(response.context["tasks"]), [urgent])
+
+    def test_autoguardado_al_editar_una_tarea_devuelve_json_sin_redirigir(self):
+        task = Task.objects.create(user=self.user, title="Editando")
+        response = self.client.post(
+            reverse("notes:task-edit", args=[task.pk]),
+            {
+                "title": "Editando en vivo", "description": "", "category": "", "tags": [],
+                "priority": Priority.MEDIUM, "due_date": "", "parent": "",
+            },
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), {"ok": True})
+        task.refresh_from_db()
+        self.assertEqual(task.title, "Editando en vivo")
+
+    def test_autoguardado_al_crear_una_tarea_devuelve_la_url_de_edicion(self):
+        response = self.client.post(
+            reverse("notes:task-create"),
+            {
+                "title": "Recien creada", "description": "", "category": "", "tags": [],
+                "priority": Priority.MEDIUM, "due_date": "", "parent": "",
+            },
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+        )
+        self.assertEqual(response.status_code, 200)
+        task = Task.objects.get(title="Recien creada")
+        self.assertEqual(response.json(), {"ok": True, "edit_url": reverse("notes:task-edit", args=[task.pk])})
 
 
 class DashboardTests(TestCase):

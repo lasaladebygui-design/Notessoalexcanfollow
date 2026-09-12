@@ -158,6 +158,79 @@
         if ("serviceWorker" in navigator) {
             window.addEventListener("load", () => navigator.serviceWorker.register("/sw.js"));
         }
+
+        // Autoguardado generico: se activa poniendo data-autosave en un
+        // <form>, con un elemento data-autosave-status cerca para el
+        // aviso de "guardando/guardado". Pensado para que cerrar sin
+        // pulsar el boton de guardar no pierda los cambios -- se guarda
+        // solo (con el mismo endpoint del formulario) a los 1.2s de dejar
+        // de escribir, y ademas al intentar cerrar la pestana/pagina.
+        function setupAutosave(form) {
+            if (!form) return;
+            const status = form.querySelector("[data-autosave-status]") || document.querySelector(`[data-autosave-status-for="${form.id}"]`);
+            let timer = null;
+            let dirty = false;
+            let saving = false;
+
+            const setStatus = (text) => { if (status) status.textContent = text; };
+
+            const save = () => {
+                if (saving) return;
+                saving = true;
+                setStatus("Guardando...");
+                const data = new FormData(form);
+                fetch(form.action || window.location.href, {
+                    method: "POST",
+                    body: data,
+                    headers: { "X-Requested-With": "XMLHttpRequest" },
+                    credentials: "same-origin",
+                }).then(async (r) => {
+                    saving = false;
+                    if (!r.ok) { setStatus("No se pudo guardar"); return; }
+                    const payload = await r.json().catch(() => ({}));
+                    if (payload.edit_url && payload.edit_url !== form.action) {
+                        // Primer autoguardado de algo recien creado: a
+                        // partir de ahora los siguientes autoguardados
+                        // actualizan ese mismo elemento en vez de crear
+                        // uno nuevo cada vez.
+                        form.action = payload.edit_url;
+                        history.replaceState(null, "", payload.edit_url);
+                        document.querySelectorAll("[data-autosave-relabel]").forEach((el) => {
+                            el.textContent = el.dataset.autosaveRelabel;
+                        });
+                    }
+                    setStatus("Guardado ✓");
+                    dirty = false;
+                }).catch(() => {
+                    saving = false;
+                    setStatus("Sin conexión, no guardado");
+                });
+            };
+
+            form.addEventListener("input", () => {
+                dirty = true;
+                setStatus("Sin guardar...");
+                clearTimeout(timer);
+                timer = setTimeout(save, 1200);
+            });
+            form.addEventListener("change", () => {
+                dirty = true;
+                clearTimeout(timer);
+                timer = setTimeout(save, 400);
+            });
+
+            window.addEventListener("beforeunload", () => {
+                if (!dirty) return;
+                // No se puede leer la respuesta ni mandar la cabecera de
+                // autoguardado con sendBeacon, pero da igual: el servidor
+                // simplemente lo trata como un envio normal del
+                // formulario (guarda y "redirige", aunque nadie siga esa
+                // redireccion) -- el guardado en si pasa igual.
+                navigator.sendBeacon?.(form.action || window.location.href, new FormData(form));
+            });
+        }
+
+        document.querySelectorAll("form[data-autosave]").forEach(setupAutosave);
     </script>
 </body>
 </html>

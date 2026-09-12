@@ -29,6 +29,15 @@ MONTH_NAMES_ES = [
 ]
 
 
+def _is_autosave(request):
+    """El autoguardado (ver setupAutosave() en base.html) manda el mismo
+    POST que el envio normal del formulario, pero marcado con esta
+    cabecera para poder responder JSON en vez de redirigir -- no tiene
+    sentido "seguir" una redireccion desde una llamada de fondo que el
+    usuario ni ve."""
+    return request.headers.get("X-Requested-With") == "XMLHttpRequest"
+
+
 # --- Dashboard -----------------------------------------------------------
 
 @login_required
@@ -113,8 +122,16 @@ def note_create(request):
             note.save()
             form.save_m2m()
             sync_event(request.user, note, "reminder_date", old_date=None)
+            if _is_autosave(request):
+                # Primer autoguardado de una nota nueva: a partir de aqui
+                # ya existe, asi que el JS cambia el formulario para que
+                # los siguientes autoguardados actualicen esta misma nota
+                # en vez de crear una nueva cada vez.
+                return JsonResponse({"ok": True, "edit_url": reverse("notes:note-edit", args=[note.pk])})
             messages.success(request, "Nota creada.")
             return redirect("notes:note-list")
+        if _is_autosave(request):
+            return JsonResponse({"ok": False}, status=400)
     else:
         form = NoteForm(user=request.user)
     return render(request, "notes/note_form.html", {"form": form, "is_new": True})
@@ -129,8 +146,12 @@ def note_edit(request, pk):
         if form.is_valid():
             note = form.save()
             sync_event(request.user, note, "reminder_date", old_date=old_date)
+            if _is_autosave(request):
+                return JsonResponse({"ok": True})
             messages.success(request, "Nota actualizada.")
             return redirect("notes:note-list")
+        if _is_autosave(request):
+            return JsonResponse({"ok": False}, status=400)
     else:
         form = NoteForm(instance=note, user=request.user)
     return render(request, "notes/note_form.html", {"form": form, "note": note, "is_new": False})
@@ -192,8 +213,12 @@ def task_create(request):
             task.save()
             form.save_m2m()
             sync_event(request.user, task, "due_date", old_date=None)
+            if _is_autosave(request):
+                return JsonResponse({"ok": True, "edit_url": reverse("notes:task-edit", args=[task.pk])})
             messages.success(request, "Tarea creada.")
             return redirect("notes:task-list")
+        if _is_autosave(request):
+            return JsonResponse({"ok": False}, status=400)
     else:
         initial = {}
         parent_id = request.GET.get("parent")
@@ -212,8 +237,12 @@ def task_edit(request, pk):
         if form.is_valid():
             task = form.save()
             sync_event(request.user, task, "due_date", old_date=old_date)
+            if _is_autosave(request):
+                return JsonResponse({"ok": True})
             messages.success(request, "Tarea actualizada.")
             return redirect("notes:task-list")
+        if _is_autosave(request):
+            return JsonResponse({"ok": False}, status=400)
     else:
         form = TaskForm(instance=task, user=request.user)
     return render(request, "notes/task_form.html", {"form": form, "task": task, "is_new": False})

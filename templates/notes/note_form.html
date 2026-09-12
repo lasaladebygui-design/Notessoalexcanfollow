@@ -2,8 +2,8 @@
 {% block title %}{% if is_new %}Nueva nota{% else %}Editar nota{% endif %} · Notas{% endblock %}
 {% block content %}
 <div class="max-w-md mx-auto">
-    <h1 class="font-display text-2xl font-bold mb-6">{% if is_new %}Nueva nota{% else %}Editar nota{% endif %}</h1>
-    <form method="post" class="card-panel space-y-4">
+    <h1 class="font-display text-2xl font-bold mb-6" data-autosave-relabel="Editar nota">{% if is_new %}Nueva nota{% else %}Editar nota{% endif %}</h1>
+    <form method="post" id="note-form" data-autosave class="card-panel space-y-4">
         {% csrf_token %}
         {% for field in form %}
         <div>
@@ -13,9 +13,10 @@
             {% for error in field.errors %}<p class="field-error">{{ error }}</p>{% endfor %}
         </div>
         {% endfor %}
-        <div class="flex gap-2 flex-wrap pt-2">
-            <button type="submit" class="btn-primary flex-1">{% if is_new %}Crear nota{% else %}Guardar cambios{% endif %}</button>
+        <div class="flex items-center gap-2 flex-wrap pt-2">
+            <button type="submit" class="btn-primary flex-1" data-autosave-relabel="Guardar cambios">{% if is_new %}Crear nota{% else %}Guardar cambios{% endif %}</button>
             <a href="{% url 'notes:note-list' %}" class="btn-ghost">Cancelar</a>
+            <span class="text-xs text-ink-muted" data-autosave-status></span>
         </div>
     </form>
     {% if not is_new %}
