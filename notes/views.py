@@ -565,8 +565,12 @@ def lecture_note_edit(request, pk):
         form = LectureNoteForm(request.POST, request.FILES, instance=lecture_note)
         if form.is_valid():
             form.save()
+            if _is_autosave(request):
+                return JsonResponse({"ok": True})
             messages.success(request, "Apunte actualizado.")
             return redirect("notes:subject-detail", pk=lecture_note.subject_id)
+        if _is_autosave(request):
+            return JsonResponse({"ok": False}, status=400)
     else:
         form = LectureNoteForm(instance=lecture_note)
     return render(request, "notes/lecture_note_form.html", {"form": form, "lecture_note": lecture_note})

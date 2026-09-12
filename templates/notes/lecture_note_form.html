@@ -3,7 +3,7 @@
 {% block content %}
 <div class="max-w-2xl mx-auto space-y-4">
     <h1 class="font-display text-2xl font-bold">Editar apunte — {{ lecture_note.subject.name }}</h1>
-    <form method="post" enctype="multipart/form-data" class="card-panel space-y-4">
+    <form method="post" enctype="multipart/form-data" id="lecture-note-form" data-autosave class="card-panel space-y-4">
         {% csrf_token %}
         <div class="flex gap-3 flex-wrap">
             <div class="w-40">
@@ -25,9 +25,10 @@
             {{ form.pdf }}
             {% for error in form.pdf.errors %}<p class="field-error">{{ error }}</p>{% endfor %}
         </div>
-        <div class="flex gap-2 flex-wrap pt-2">
+        <div class="flex items-center gap-2 flex-wrap pt-2">
             <button type="submit" class="btn-primary flex-1">Guardar cambios</button>
             <a href="{% url 'notes:subject-detail' pk=lecture_note.subject_id %}" class="btn-ghost">Cancelar</a>
+            <span class="text-xs text-ink-muted" data-autosave-status></span>
         </div>
     </form>
     <form method="post" action="{% url 'notes:lecture-note-delete' pk=lecture_note.pk %}" onsubmit="return confirm('¿Borrar este apunte?');">

@@ -607,6 +607,36 @@ class SubjectAndLectureNoteTests(TestCase):
         response = self.client.get(reverse("notes:lecture-note-edit", args=[note.pk]))
         self.assertEqual(response.status_code, 404)
 
+    def test_autoguardado_al_editar_un_apunte_devuelve_json_sin_redirigir(self):
+        subject = Subject.objects.create(user=self.user, name="Física")
+        note = LectureNote.objects.create(subject=subject, title="Original", content="...")
+        response = self.client.post(
+            reverse("notes:lecture-note-edit", args=[note.pk]),
+            {"date": timezone.localdate().isoformat(), "title": "Editado en vivo", "content": "cambiando..."},
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), {"ok": True})
+        note.refresh_from_db()
+        self.assertEqual(note.title, "Editado en vivo")
+
+    def test_autoguardado_de_apunte_no_borra_el_pdf_ya_subido(self):
+        # El campo PDF no es del modelo (ver LectureNoteForm.save): si el
+        # autoguardado dispara sin haber vuelto a elegir un archivo, no
+        # debe borrar el PDF que ya hubiera.
+        subject = Subject.objects.create(user=self.user, name="Física")
+        note = LectureNote.objects.create(
+            subject=subject, title="Con PDF", content="...", pdf_data=b"%PDF-1.4 contenido", pdf_filename="apuntes.pdf",
+        )
+        response = self.client.post(
+            reverse("notes:lecture-note-edit", args=[note.pk]),
+            {"date": timezone.localdate().isoformat(), "title": "Con PDF editado", "content": "..."},
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+        )
+        self.assertEqual(response.status_code, 200)
+        note.refresh_from_db()
+        self.assertEqual(bytes(note.pdf_data), b"%PDF-1.4 contenido")
+
     def test_borrar_asignatura_borra_sus_apuntes(self):
         subject = Subject.objects.create(user=self.user, name="Química")
         LectureNote.objects.create(subject=subject, title="Apunte 1")
