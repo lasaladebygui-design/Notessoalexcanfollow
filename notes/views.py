@@ -6,7 +6,7 @@ from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
-from django.db.models import Count, Q
+from django.db.models import Count, Prefetch, Q
 from django.http import Http404, HttpResponse, HttpResponseBadRequest, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -72,17 +72,17 @@ def global_search(request):
     query = request.GET.get("q", "").strip()
     results = {"notes": [], "tasks": [], "habits": [], "goals": [], "lecture_notes": []}
     if query:
-        results["notes"] = Note.objects.filter(user=request.user).filter(
+        results["notes"] = Note.objects.active().filter(user=request.user).filter(
             Q(title__icontains=query) | Q(body__icontains=query)
         ).select_related("category")[:8]
-        results["tasks"] = Task.objects.filter(user=request.user).filter(
+        results["tasks"] = Task.objects.active().filter(user=request.user).filter(
             Q(title__icontains=query) | Q(description__icontains=query)
         ).select_related("category")[:8]
-        results["habits"] = Habit.objects.filter(user=request.user, title__icontains=query)[:8]
-        results["goals"] = Goal.objects.filter(user=request.user).filter(
+        results["habits"] = Habit.objects.active().filter(user=request.user, title__icontains=query)[:8]
+        results["goals"] = Goal.objects.active().filter(user=request.user).filter(
             Q(title__icontains=query) | Q(description__icontains=query)
         )[:8]
-        results["lecture_notes"] = LectureNote.objects.filter(subject__user=request.user).filter(
+        results["lecture_notes"] = LectureNote.objects.active().filter(subject__user=request.user).filter(
             Q(title__icontains=query) | Q(content__icontains=query) | Q(subject__name__icontains=query)
         ).select_related("subject")[:8]
     total = sum(len(v) for v in results.values())
@@ -97,7 +97,7 @@ def note_list(request):
     category_id = request.GET.get("category", "")
     tag_id = request.GET.get("tag", "")
 
-    notes = Note.objects.filter(user=request.user).select_related("category").prefetch_related("tags")
+    notes = Note.objects.active().filter(user=request.user).select_related("category").prefetch_related("tags")
     if query:
         notes = notes.filter(Q(title__icontains=query) | Q(body__icontains=query))
     if category_id:
@@ -139,7 +139,7 @@ def note_create(request):
 
 @login_required
 def note_edit(request, pk):
-    note = get_object_or_404(Note, pk=pk, user=request.user)
+    note = get_object_or_404(Note.objects.active(), pk=pk, user=request.user)
     if request.method == "POST":
         old_date = note.reminder_date
         form = NoteForm(request.POST, instance=note, user=request.user)
@@ -160,16 +160,18 @@ def note_edit(request, pk):
 @login_required
 @require_POST
 def note_delete(request, pk):
-    note = get_object_or_404(Note, pk=pk, user=request.user)
+    note = get_object_or_404(Note.objects.active(), pk=pk, user=request.user)
     delete_event_for(request.user, note)
-    note.delete()
+    note.deleted_at = timezone.now()
+    note.save(update_fields=["deleted_at"])
+    messages.info(request, "Nota movida a Eliminados.")
     return redirect("notes:note-list")
 
 
 @login_required
 @require_POST
 def note_toggle_pin(request, pk):
-    note = get_object_or_404(Note, pk=pk, user=request.user)
+    note = get_object_or_404(Note.objects.active(), pk=pk, user=request.user)
     note.is_pinned = not note.is_pinned
     note.save(update_fields=["is_pinned"])
     return redirect(request.META.get("HTTP_REFERER") or "notes:note-list")
@@ -184,7 +186,9 @@ def task_list(request):
     priority = request.GET.get("priority", "")
     show = request.GET.get("show", "pending")
 
-    tasks = Task.objects.filter(user=request.user, parent__isnull=True).select_related("category").prefetch_related("tags", "subtasks")
+    tasks = Task.objects.active().filter(user=request.user, parent__isnull=True).select_related("category").prefetch_related(
+        "tags", Prefetch("subtasks", queryset=Task.objects.active()),
+    )
     if query:
         tasks = tasks.filter(Q(title__icontains=query) | Q(description__icontains=query))
     if category_id:
@@ -230,7 +234,7 @@ def task_create(request):
 
 @login_required
 def task_edit(request, pk):
-    task = get_object_or_404(Task, pk=pk, user=request.user)
+    task = get_object_or_404(Task.objects.active(), pk=pk, user=request.user)
     if request.method == "POST":
         old_date = task.due_date
         form = TaskForm(request.POST, instance=task, user=request.user)
@@ -251,16 +255,18 @@ def task_edit(request, pk):
 @login_required
 @require_POST
 def task_delete(request, pk):
-    task = get_object_or_404(Task, pk=pk, user=request.user)
+    task = get_object_or_404(Task.objects.active(), pk=pk, user=request.user)
     delete_event_for(request.user, task)
-    task.delete()
+    task.deleted_at = timezone.now()
+    task.save(update_fields=["deleted_at"])
+    messages.info(request, "Tarea movida a Eliminados.")
     return redirect("notes:task-list")
 
 
 @login_required
 @require_POST
 def task_toggle_done(request, pk):
-    task = get_object_or_404(Task, pk=pk, user=request.user)
+    task = get_object_or_404(Task.objects.active(), pk=pk, user=request.user)
     task.mark_done(not task.is_done)
     return redirect(request.META.get("HTTP_REFERER") or "notes:task-list")
 
@@ -273,7 +279,7 @@ def task_reorder(request):
     except (json.JSONDecodeError, KeyError, TypeError):
         return HttpResponseBadRequest("order inválido")
 
-    own_ids = set(Task.objects.filter(user=request.user, pk__in=ordered_ids).values_list("pk", flat=True))
+    own_ids = set(Task.objects.active().filter(user=request.user, pk__in=ordered_ids).values_list("pk", flat=True))
     tasks = []
     for position, task_id in enumerate(ordered_ids):
         if task_id in own_ids:
@@ -354,7 +360,7 @@ def habit_list(request):
         form = HabitForm(user=request.user)
 
     return render(request, "notes/habit_list.html", {
-        "habits": Habit.objects.filter(user=request.user, is_archived=False).select_related("category"),
+        "habits": Habit.objects.active().filter(user=request.user, is_archived=False).select_related("category"),
         "form": form,
     })
 
@@ -362,7 +368,7 @@ def habit_list(request):
 @login_required
 @require_POST
 def habit_toggle_checkin(request, pk):
-    habit = get_object_or_404(Habit, pk=pk, user=request.user)
+    habit = get_object_or_404(Habit.objects.active(), pk=pk, user=request.user)
     today = timezone.localdate()
     checkin, created = habit.checkins.get_or_create(date=today)
     if not created:
@@ -373,7 +379,10 @@ def habit_toggle_checkin(request, pk):
 @login_required
 @require_POST
 def habit_delete(request, pk):
-    get_object_or_404(Habit, pk=pk, user=request.user).delete()
+    habit = get_object_or_404(Habit.objects.active(), pk=pk, user=request.user)
+    habit.deleted_at = timezone.now()
+    habit.save(update_fields=["deleted_at"])
+    messages.info(request, "Hábito movido a Eliminados.")
     return redirect("notes:habit-list")
 
 
@@ -382,7 +391,7 @@ def habit_delete(request, pk):
 @login_required
 def goal_list(request):
     return render(request, "notes/goal_list.html", {
-        "goals": Goal.objects.filter(user=request.user).prefetch_related("steps"),
+        "goals": Goal.objects.active().filter(user=request.user).prefetch_related("steps"),
     })
 
 
@@ -403,7 +412,7 @@ def goal_create(request):
 
 @login_required
 def goal_detail(request, pk):
-    goal = get_object_or_404(Goal, pk=pk, user=request.user)
+    goal = get_object_or_404(Goal.objects.active(), pk=pk, user=request.user)
     if request.method == "POST":
         step_form = GoalStepForm(request.POST)
         if step_form.is_valid():
@@ -421,7 +430,7 @@ def goal_detail(request, pk):
 
 @login_required
 def goal_edit(request, pk):
-    goal = get_object_or_404(Goal, pk=pk, user=request.user)
+    goal = get_object_or_404(Goal.objects.active(), pk=pk, user=request.user)
     if request.method == "POST":
         form = GoalForm(request.POST, instance=goal)
         if form.is_valid():
@@ -436,14 +445,17 @@ def goal_edit(request, pk):
 @login_required
 @require_POST
 def goal_delete(request, pk):
-    get_object_or_404(Goal, pk=pk, user=request.user).delete()
+    goal = get_object_or_404(Goal.objects.active(), pk=pk, user=request.user)
+    goal.deleted_at = timezone.now()
+    goal.save(update_fields=["deleted_at"])
+    messages.info(request, "Objetivo movido a Eliminados.")
     return redirect("notes:goal-list")
 
 
 @login_required
 @require_POST
 def goal_toggle_achieved(request, pk):
-    goal = get_object_or_404(Goal, pk=pk, user=request.user)
+    goal = get_object_or_404(Goal.objects.active(), pk=pk, user=request.user)
     goal.mark_achieved(not goal.is_achieved)
     return redirect("notes:goal-detail", pk=goal.pk)
 
@@ -531,7 +543,7 @@ def shared_subject(request, token):
     subject = get_object_or_404(Subject, share_token=token, is_shared=True)
     return render(request, "notes/shared_subject.html", {
         "subject": subject,
-        "lecture_notes": subject.lecture_notes.all(),
+        "lecture_notes": subject.lecture_notes.active(),
     })
 
 
@@ -552,7 +564,7 @@ def subject_detail(request, pk):
     share_url = request.build_absolute_uri(reverse("notes:shared-subject", args=[subject.share_token]))
     return render(request, "notes/subject_detail.html", {
         "subject": subject,
-        "lecture_notes": subject.lecture_notes.all(),
+        "lecture_notes": subject.lecture_notes.active(),
         "form": form,
         "share_url": share_url,
     })
@@ -560,7 +572,7 @@ def subject_detail(request, pk):
 
 @login_required
 def lecture_note_edit(request, pk):
-    lecture_note = get_object_or_404(LectureNote, pk=pk, subject__user=request.user)
+    lecture_note = get_object_or_404(LectureNote.objects.active(), pk=pk, subject__user=request.user)
     if request.method == "POST":
         form = LectureNoteForm(request.POST, request.FILES, instance=lecture_note)
         if form.is_valid():
@@ -579,9 +591,11 @@ def lecture_note_edit(request, pk):
 @login_required
 @require_POST
 def lecture_note_delete(request, pk):
-    lecture_note = get_object_or_404(LectureNote, pk=pk, subject__user=request.user)
+    lecture_note = get_object_or_404(LectureNote.objects.active(), pk=pk, subject__user=request.user)
     subject_id = lecture_note.subject_id
-    lecture_note.delete()
+    lecture_note.deleted_at = timezone.now()
+    lecture_note.save(update_fields=["deleted_at"])
+    messages.info(request, "Apunte movido a Eliminados.")
     return redirect("notes:subject-detail", pk=subject_id)
 
 
@@ -625,7 +639,7 @@ def event_create(request):
 
 @login_required
 def event_edit(request, pk):
-    event = get_object_or_404(Event, pk=pk, user=request.user)
+    event = get_object_or_404(Event.objects.active(), pk=pk, user=request.user)
     if request.method == "POST":
         old_date = event.date
         form = EventForm(request.POST, instance=event, user=request.user)
@@ -642,10 +656,12 @@ def event_edit(request, pk):
 @login_required
 @require_POST
 def event_delete(request, pk):
-    event = get_object_or_404(Event, pk=pk, user=request.user)
+    event = get_object_or_404(Event.objects.active(), pk=pk, user=request.user)
     delete_event_for(request.user, event)
     event_date = event.date
-    event.delete()
+    event.deleted_at = timezone.now()
+    event.save(update_fields=["deleted_at"])
+    messages.info(request, "Evento movido a Eliminados.")
     return redirect(f"{reverse('notes:calendar')}?view=day&date={event_date.isoformat()}")
 
 
@@ -685,9 +701,9 @@ def _collect_items(user, start, end):
     (None para tareas/notas, que no tienen) para poder ordenar dentro del
     día -- lo comparte el mes, la semana y el día para no triplicar la
     misma consulta tres veces."""
-    tasks = Task.objects.filter(user=user, due_date__gte=start, due_date__lte=end).select_related("category")
-    notes = Note.objects.filter(user=user, reminder_date__gte=start, reminder_date__lte=end).select_related("category")
-    events = Event.objects.filter(user=user, date__gte=start, date__lte=end).select_related("category")
+    tasks = Task.objects.active().filter(user=user, due_date__gte=start, due_date__lte=end).select_related("category")
+    notes = Note.objects.active().filter(user=user, reminder_date__gte=start, reminder_date__lte=end).select_related("category")
+    events = Event.objects.active().filter(user=user, date__gte=start, date__lte=end).select_related("category")
 
     items_by_date = {}
     for task in tasks:
@@ -789,3 +805,78 @@ def _calendar_day(request):
         "next_day": (day + timedelta(days=1)).isoformat(),
         "today_iso": today.isoformat(),
     })
+
+
+# --- Papelera --------------------------------------------------------------
+
+# Solo estos seis llevan papelera (deleted_at) -- Category/Tag/Subject/
+# GoalStep se quedan con borrado real de toda la vida: son piezas
+# "estructurales" (organizan otras cosas) más que contenido que se
+# escribe y del que da pena perder el trabajo, y complicarían la
+# papelera con sus propias relaciones en cascada.
+TRASH_MODELS = {
+    "note": Note,
+    "task": Task,
+    "habit": Habit,
+    "goal": Goal,
+    "event": Event,
+    "lecture_note": LectureNote,
+}
+
+TRASH_LABELS = {
+    "note": "Nota",
+    "task": "Tarea",
+    "habit": "Hábito",
+    "goal": "Objetivo",
+    "event": "Evento",
+    "lecture_note": "Apunte",
+}
+
+
+def _trash_queryset(kind, user):
+    model = TRASH_MODELS.get(kind)
+    if model is None:
+        raise Http404
+    owner_filter = {"subject__user": user} if kind == "lecture_note" else {"user": user}
+    return model.objects.trashed().filter(**owner_filter)
+
+
+@login_required
+def trash(request):
+    items = []
+    for kind in TRASH_MODELS:
+        for obj in _trash_queryset(kind, request.user):
+            items.append({"kind": kind, "label": TRASH_LABELS[kind], "obj": obj})
+    items.sort(key=lambda item: item["obj"].deleted_at, reverse=True)
+    return render(request, "notes/trash.html", {"items": items})
+
+
+@login_required
+@require_POST
+def trash_restore(request, kind, pk):
+    obj = get_object_or_404(_trash_queryset(kind, request.user), pk=pk)
+    obj.deleted_at = None
+    obj.save(update_fields=["deleted_at"])
+    messages.success(request, f"{TRASH_LABELS[kind]} restaurado.")
+    return redirect("notes:trash")
+
+
+@login_required
+@require_POST
+def trash_delete_forever(request, kind, pk):
+    obj = get_object_or_404(_trash_queryset(kind, request.user), pk=pk)
+    obj.delete()
+    messages.success(request, f"{TRASH_LABELS[kind]} eliminado para siempre.")
+    return redirect("notes:trash")
+
+
+@login_required
+@require_POST
+def trash_empty(request):
+    total = 0
+    for kind in TRASH_MODELS:
+        qs = _trash_queryset(kind, request.user)
+        total += qs.count()
+        qs.delete()
+    messages.success(request, f"Papelera vaciada ({total} elemento{'s' if total != 1 else ''} eliminados para siempre).")
+    return redirect("notes:trash")

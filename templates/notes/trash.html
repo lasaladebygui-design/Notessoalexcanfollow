@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}Eliminados{% endblock %}
+{% block content %}
+<div class="max-w-2xl space-y-6">
+
+    <div class="flex items-center justify-between gap-4 flex-wrap">
+        <h1 class="font-display text-2xl font-bold text-ink-primary">🗑️ Eliminados</h1>
+        {% if items %}
+        <form method="post" action="{% url 'notes:trash-empty' %}" onsubmit="return confirm('Esto borra para siempre TODO lo que hay en la papelera ({{ items|length }} elemento{{ items|length|pluralize }}). No se puede deshacer. ¿Seguro?');">
+            {% csrf_token %}
+            <button type="submit" class="btn-ghost text-critical">Vaciar papelera</button>
+        </form>
+        {% endif %}
+    </div>
+
+    {% if items %}
+    <p class="text-sm text-ink-muted">Lo que borras se queda aquí hasta que lo restauras o vacías la papelera. Nada se borra de verdad hasta entonces.</p>
+    <ul class="space-y-2">
+        {% for item in items %}
+        <li class="card-panel flex items-center gap-3">
+            <span class="pill">{{ item.label }}</span>
+            <div class="flex-1 min-w-0">
+                <p class="font-medium text-ink-primary truncate">{{ item.obj }}</p>
+                <p class="text-xs text-ink-muted">Eliminado el {{ item.obj.deleted_at|date:"d/m/Y H:i" }}</p>
+            </div>
+            <form method="post" action="{% url 'notes:trash-restore' kind=item.kind pk=item.obj.pk %}">
+                {% csrf_token %}
+                <button type="submit" class="btn-ghost" title="Restaurar">↩️ Restaurar</button>
+            </form>
+            <form method="post" action="{% url 'notes:trash-delete-forever' kind=item.kind pk=item.obj.pk %}" onsubmit="return confirm('¿Borrar «{{ item.obj }}» para siempre? No se puede deshacer.');">
+                {% csrf_token %}
+                <button type="submit" class="text-ink-muted hover:text-critical" title="Borrar para siempre">🗑️ Borrar para siempre</button>
+            </form>
+        </li>
+        {% endfor %}
+    </ul>
+    {% else %}
+    <p class="text-sm text-ink-muted">La papelera está vacía.</p>
+    {% endif %}
+</div>
+{% endblock %}

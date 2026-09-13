@@ -7,6 +7,23 @@ from django.utils import timezone
 User = settings.AUTH_USER_MODEL
 
 
+class SoftDeleteQuerySet(models.QuerySet):
+    """Para los modelos con papelera (ver Nota/Tarea/Hábito/Objetivo/
+    Evento/Apunte, que llevan `deleted_at`). A propósito NO se toca el
+    manager por defecto (`objects` sigue viendo todo, borrado incluido):
+    si el manager por defecto filtrase solo, Django lo usaría también
+    para el borrado en cascada real de verdad (p.ej. al borrar una
+    Subject de verdad), y los apuntes ya en la papelera de esa asignatura
+    se quedarían huérfanos en vez de borrarse con ella. El filtrado es
+    explícito con .active()/.trashed() en cada sitio que lista cosas."""
+
+    def active(self):
+        return self.filter(deleted_at__isnull=True)
+
+    def trashed(self):
+        return self.filter(deleted_at__isnull=False)
+
+
 class Category(models.Model):
     """Categoría/carpeta de cada usuario -- una sola jerarquía para las
     dos cosas (spec pedía "categorías, carpetas y etiquetas" como tres
@@ -68,8 +85,11 @@ class Note(models.Model):
     is_pinned = models.BooleanField("fijada", default=False)
     reminder_date = models.DateField("fecha", null=True, blank=True)
     google_event_id = models.CharField("id de evento en Google Calendar", max_length=255, blank=True, editable=False)
+    deleted_at = models.DateTimeField("eliminada el", null=True, blank=True, db_index=True)
     created_at = models.DateTimeField("creada", auto_now_add=True)
     updated_at = models.DateTimeField("última edición", auto_now=True)
+
+    objects = SoftDeleteQuerySet.as_manager()
 
     class Meta:
         verbose_name = "nota"
@@ -101,8 +121,11 @@ class Task(models.Model):
     is_done = models.BooleanField("hecha", default=False)
     completed_at = models.DateTimeField("completada", null=True, blank=True)
     order = models.PositiveSmallIntegerField("orden", default=0)
+    deleted_at = models.DateTimeField("eliminada el", null=True, blank=True, db_index=True)
     created_at = models.DateTimeField("creada", auto_now_add=True)
     updated_at = models.DateTimeField("última edición", auto_now=True)
+
+    objects = SoftDeleteQuerySet.as_manager()
 
     class Meta:
         verbose_name = "tarea"
@@ -138,7 +161,10 @@ class Habit(models.Model):
     title = models.CharField("título", max_length=150)
     category = models.ForeignKey(Category, verbose_name="categoría", on_delete=models.SET_NULL, null=True, blank=True, related_name="habits")
     is_archived = models.BooleanField("archivado", default=False)
+    deleted_at = models.DateTimeField("eliminado el", null=True, blank=True, db_index=True)
     created_at = models.DateTimeField("creado", auto_now_add=True)
+
+    objects = SoftDeleteQuerySet.as_manager()
 
     class Meta:
         verbose_name = "hábito"
@@ -203,7 +229,10 @@ class Goal(models.Model):
     target_date = models.DateField("fecha objetivo", null=True, blank=True)
     is_achieved = models.BooleanField("conseguido", default=False)
     achieved_at = models.DateTimeField("conseguido el", null=True, blank=True)
+    deleted_at = models.DateTimeField("eliminado el", null=True, blank=True, db_index=True)
     created_at = models.DateTimeField("creado", auto_now_add=True)
+
+    objects = SoftDeleteQuerySet.as_manager()
 
     class Meta:
         verbose_name = "objetivo"
@@ -283,8 +312,11 @@ class LectureNote(models.Model):
     # infraestructura de la que hace falta para el volumen de esta app.
     pdf_data = models.BinaryField("PDF", null=True, blank=True, editable=False)
     pdf_filename = models.CharField("nombre del PDF", max_length=255, blank=True)
+    deleted_at = models.DateTimeField("eliminado el", null=True, blank=True, db_index=True)
     created_at = models.DateTimeField("creado", auto_now_add=True)
     updated_at = models.DateTimeField("última edición", auto_now=True)
+
+    objects = SoftDeleteQuerySet.as_manager()
 
     class Meta:
         verbose_name = "apunte de clase"
@@ -311,8 +343,11 @@ class Event(models.Model):
     end_time = models.TimeField("hora de fin", null=True, blank=True)
     category = models.ForeignKey(Category, verbose_name="categoría", on_delete=models.SET_NULL, null=True, blank=True, related_name="events")
     google_event_id = models.CharField("id de evento en Google Calendar", max_length=255, blank=True, editable=False)
+    deleted_at = models.DateTimeField("eliminado el", null=True, blank=True, db_index=True)
     created_at = models.DateTimeField("creado", auto_now_add=True)
     updated_at = models.DateTimeField("última edición", auto_now=True)
+
+    objects = SoftDeleteQuerySet.as_manager()
 
     class Meta:
         verbose_name = "evento"

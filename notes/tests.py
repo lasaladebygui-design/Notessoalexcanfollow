@@ -63,7 +63,8 @@ class NoteCrudTests(TestCase):
     def test_borrar_nota(self):
         note = Note.objects.create(user=self.user, title="Borrar esto")
         self.client.post(reverse("notes:note-delete", args=[note.pk]))
-        self.assertFalse(Note.objects.filter(pk=note.pk).exists())
+        self.assertFalse(Note.objects.active().filter(pk=note.pk).exists())
+        self.assertTrue(Note.objects.trashed().filter(pk=note.pk).exists())
 
     def test_autoguardado_al_editar_devuelve_json_sin_redirigir(self):
         # El autoguardado (ver setupAutosave en base.html) manda el mismo
@@ -363,7 +364,8 @@ class EventTests(TestCase):
     def test_borrar_evento(self):
         event = Event.objects.create(user=self.user, title="A borrar", date="2026-09-15")
         self.client.post(reverse("notes:event-delete", args=[event.pk]))
-        self.assertFalse(Event.objects.filter(pk=event.pk).exists())
+        self.assertFalse(Event.objects.active().filter(pk=event.pk).exists())
+        self.assertTrue(Event.objects.trashed().filter(pk=event.pk).exists())
 
 
 class CalendarWeekDayViewTests(TestCase):
@@ -746,3 +748,92 @@ class SubjectSharingTests(TestCase):
         self.assertEqual(response.status_code, 404)
         self.subject.refresh_from_db()
         self.assertFalse(self.subject.is_shared)
+
+
+class TrashTests(TestCase):
+    def setUp(self):
+        self.user = make_user("trash1@test.local")
+        self.other = make_user("trash2@test.local")
+        self.client.login(username=self.user.username, password="Testpass123!")
+
+    def test_nota_borrada_desaparece_de_la_lista_pero_aparece_en_la_papelera(self):
+        note = Note.objects.create(user=self.user, title="Efímera")
+        self.client.post(reverse("notes:note-delete", args=[note.pk]))
+
+        response = self.client.get(reverse("notes:note-list"))
+        self.assertNotContains(response, "Efímera")
+
+        response = self.client.get(reverse("notes:trash"))
+        self.assertContains(response, "Efímera")
+
+    def test_nota_borrada_no_sale_en_el_dashboard_ni_en_la_busqueda(self):
+        note = Note.objects.create(user=self.user, title="Buscadísima", reminder_date=timezone.localdate())
+        self.client.post(reverse("notes:note-delete", args=[note.pk]))
+
+        self.assertNotContains(self.client.get(reverse("notes:dashboard")), "Buscadísima")
+        # La página de búsqueda repite la propia query en el input y en el
+        # mensaje de "sin resultados", así que comprobamos el total real de
+        # resultados en vez de buscar el texto en el HTML.
+        search_response = self.client.get(reverse("notes:search"), {"q": "Buscadísima"})
+        self.assertEqual(search_response.context["total"], 0)
+
+    def test_restaurar_una_nota_la_devuelve_a_la_lista(self):
+        note = Note.objects.create(user=self.user, title="Vuelvo")
+        self.client.post(reverse("notes:note-delete", args=[note.pk]))
+        self.client.post(reverse("notes:trash-restore", args=["note", note.pk]))
+
+        note.refresh_from_db()
+        self.assertIsNone(note.deleted_at)
+        self.assertContains(self.client.get(reverse("notes:note-list")), "Vuelvo")
+
+    def test_borrar_para_siempre_elimina_la_fila_de_verdad(self):
+        note = Note.objects.create(user=self.user, title="Adiós de verdad")
+        self.client.post(reverse("notes:note-delete", args=[note.pk]))
+        self.client.post(reverse("notes:trash-delete-forever", args=["note", note.pk]))
+
+        self.assertFalse(Note.objects.filter(pk=note.pk).exists())
+
+    def test_vaciar_papelera_borra_todo_lo_eliminado_de_todos_los_tipos(self):
+        note = Note.objects.create(user=self.user, title="Nota")
+        task = Task.objects.create(user=self.user, title="Tarea")
+        habit = Habit.objects.create(user=self.user, title="Hábito")
+        subject = Subject.objects.create(user=self.user, name="Asignatura")
+        lecture_note = LectureNote.objects.create(subject=subject, title="Apunte")
+
+        for kind, obj in [("note", note), ("task", task), ("habit", habit), ("lecture_note", lecture_note)]:
+            self.client.post(reverse(f"notes:{kind.replace('_', '-')}-delete", args=[obj.pk]))
+
+        response = self.client.post(reverse("notes:trash-empty"))
+        self.assertRedirects(response, reverse("notes:trash"))
+
+        self.assertFalse(Note.objects.filter(pk=note.pk).exists())
+        self.assertFalse(Task.objects.filter(pk=task.pk).exists())
+        self.assertFalse(Habit.objects.filter(pk=habit.pk).exists())
+        self.assertFalse(LectureNote.objects.filter(pk=lecture_note.pk).exists())
+        self.assertEqual(self.client.get(reverse("notes:trash")).context["items"], [])
+
+    def test_no_se_puede_restaurar_ni_purgar_lo_eliminado_de_otro_usuario(self):
+        ajena = Note.objects.create(user=self.other, title="Ajena")
+        ajena.deleted_at = timezone.now()
+        ajena.save(update_fields=["deleted_at"])
+
+        self.assertEqual(
+            self.client.post(reverse("notes:trash-restore", args=["note", ajena.pk])).status_code, 404,
+        )
+        self.assertEqual(
+            self.client.post(reverse("notes:trash-delete-forever", args=["note", ajena.pk])).status_code, 404,
+        )
+        ajena.refresh_from_db()
+        self.assertIsNotNone(ajena.deleted_at)
+
+    def test_vaciar_papelera_no_toca_lo_eliminado_de_otro_usuario(self):
+        ajena = Note.objects.create(user=self.other, title="Ajena")
+        ajena.deleted_at = timezone.now()
+        ajena.save(update_fields=["deleted_at"])
+
+        self.client.post(reverse("notes:trash-empty"))
+        self.assertTrue(Note.objects.filter(pk=ajena.pk).exists())
+
+    def test_papelera_vacia_muestra_mensaje(self):
+        response = self.client.get(reverse("notes:trash"))
+        self.assertContains(response, "papelera está vacía")

@@ -57,4 +57,9 @@ urlpatterns = [
     path("eventos/<int:pk>/borrar/", views.event_delete, name="event-delete"),
 
     path("calendario/", views.calendar_view, name="calendar"),
+
+    path("eliminados/", views.trash, name="trash"),
+    path("eliminados/<str:kind>/<int:pk>/restaurar/", views.trash_restore, name="trash-restore"),
+    path("eliminados/<str:kind>/<int:pk>/borrar-para-siempre/", views.trash_delete_forever, name="trash-delete-forever"),
+    path("eliminados/vaciar/", views.trash_empty, name="trash-empty"),
 ]

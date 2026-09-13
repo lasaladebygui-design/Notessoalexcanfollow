@@ -20,10 +20,10 @@ def dashboard_summary(user):
     week_start = today - timedelta(days=today.weekday())
     soon = today + timedelta(days=7)
 
-    tasks = Task.objects.filter(user=user)
+    tasks = Task.objects.active().filter(user=user)
     pending = tasks.filter(is_done=False)
 
-    habits = list(Habit.objects.filter(user=user, is_archived=False))
+    habits = list(Habit.objects.active().filter(user=user, is_archived=False))
     habits_pending = [h for h in habits if not h.done_today()]
 
     return {
@@ -38,10 +38,10 @@ def dashboard_summary(user):
         "high_priority_count": pending.filter(priority__in=[Priority.HIGH, Priority.URGENT]).count(),
         "due_today": pending.filter(due_date=today).select_related("category"),
         "upcoming": pending.filter(due_date__gt=today, due_date__lte=soon).select_related("category").order_by("due_date")[:10],
-        "upcoming_reminders": Note.objects.filter(
+        "upcoming_reminders": Note.objects.active().filter(
             user=user, reminder_date__gte=today, reminder_date__lte=soon,
         ).order_by("reminder_date")[:10],
-        "recent_notes": Note.objects.filter(user=user).select_related("category")[:6],
+        "recent_notes": Note.objects.active().filter(user=user).select_related("category")[:6],
     }
 
 
@@ -58,7 +58,7 @@ def productivity_stats(user, weeks=8):
     for i in range(weeks - 1, -1, -1):
         week_start = this_week_start - timedelta(weeks=i)
         week_end = week_start + timedelta(days=7)
-        count = Task.objects.filter(
+        count = Task.objects.active().filter(
             user=user, is_done=True, completed_at__date__gte=week_start, completed_at__date__lt=week_end,
         ).count()
         weekly.append({"label": week_start.strftime("%d/%m"), "count": count})
@@ -67,7 +67,7 @@ def productivity_stats(user, weeks=8):
         w["pct"] = round(w["count"] / peak * 100)
 
     by_category = list(
-        Task.objects.filter(user=user, category__isnull=False)
+        Task.objects.active().filter(user=user, category__isnull=False)
         .values("category__name", "category__color", "category__icon")
         .annotate(total=Count("id"))
         .order_by("-total")[:8]
@@ -77,7 +77,7 @@ def productivity_stats(user, weeks=8):
         c["pct"] = round(c["total"] / cat_peak * 100)
 
     priority_counts = dict(
-        Task.objects.filter(user=user).values_list("priority").annotate(total=Count("id"))
+        Task.objects.active().filter(user=user).values_list("priority").annotate(total=Count("id"))
     )
     by_priority = [
         {"key": key, "label": label, "count": priority_counts.get(key, 0), "color": PRIORITY_COLORS[key]}
@@ -87,18 +87,18 @@ def productivity_stats(user, weeks=8):
     for p in by_priority:
         p["pct"] = round(p["count"] / priority_peak * 100)
 
-    habits = list(Habit.objects.filter(user=user, is_archived=False))
+    habits = list(Habit.objects.active().filter(user=user, is_archived=False))
     habits_summary = sorted(
         [{"title": h.title, "streak": h.current_streak(), "done_today": h.done_today()} for h in habits],
         key=lambda h: -h["streak"],
     )
 
-    goals = Goal.objects.filter(user=user)
+    goals = Goal.objects.active().filter(user=user)
     goals_achieved = goals.filter(is_achieved=True).count()
     goals_total = goals.count()
 
     month_start = today.replace(day=1)
-    tasks_all = Task.objects.filter(user=user)
+    tasks_all = Task.objects.active().filter(user=user)
 
     return {
         "weekly": weekly,
@@ -110,7 +110,7 @@ def productivity_stats(user, weeks=8):
         "goals_pct": round(goals_achieved / goals_total * 100) if goals_total else 0,
         "tasks_total": tasks_all.count(),
         "tasks_done_total": tasks_all.filter(is_done=True).count(),
-        "notes_this_month": Note.objects.filter(user=user, created_at__date__gte=month_start).count(),
+        "notes_this_month": Note.objects.active().filter(user=user, created_at__date__gte=month_start).count(),
         "best_streak": max((h["streak"] for h in habits_summary), default=0),
     }
 

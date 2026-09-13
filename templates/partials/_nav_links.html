@@ -7,6 +7,7 @@
 {% url 'notes:goal-list' as url_goals %}
 {% url 'notes:subject-list' as url_subjects %}
 {% url 'notes:stats' as url_stats %}
+{% url 'notes:trash' as url_trash %}
 
 <a href="{{ url_dashboard }}" class="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors duration-150 {% if request.path == url_dashboard %}bg-accent/15 text-accent{% else %}text-ink-secondary hover:bg-surface-raised hover:text-ink-primary{% endif %}">🏠 Resumen</a>
 <a href="{{ url_calendar }}" class="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors duration-150 {% if request.path == url_calendar %}bg-accent/15 text-accent{% else %}text-ink-secondary hover:bg-surface-raised hover:text-ink-primary{% endif %}">📅 Calendario</a>
@@ -25,6 +26,7 @@
 
 <p class="px-3 pt-4 pb-1 text-[0.68rem] font-semibold uppercase tracking-wider text-ink-muted">Insights</p>
 <a href="{{ url_stats }}" class="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors duration-150 {% if request.path == url_stats %}bg-accent/15 text-accent{% else %}text-ink-secondary hover:bg-surface-raised hover:text-ink-primary{% endif %}">📊 Analíticas</a>
+<a href="{{ url_trash }}" class="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors duration-150 {% if request.path == url_trash %}bg-accent/15 text-accent{% else %}text-ink-secondary hover:bg-surface-raised hover:text-ink-primary{% endif %}">🗑️ Eliminados</a>
 
 <form method="post" action="{% url 'accounts:logout' %}" class="pt-4 mt-4 border-t border-line">
     {% csrf_token %}
